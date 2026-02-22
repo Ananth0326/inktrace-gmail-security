@@ -1,51 +1,29 @@
-# Email Scanner (Google OAuth + Gmail + AI)
+🖋️ InkTrace: Mail Risk Intelligence
+InkTrace is a professional-grade security intelligence layer for Gmail, designed to analyze domain behavior and AI risk signals with a premium, motion-rich interface. It transforms traditional email analysis into a high-contrast, "Risk-First" workspace that emphasizes explainable AI and tactile interaction.
 
-MVP stack:
-- Backend: FastAPI + SQLite
-- Frontend: React (Vite)
-- Auth: Google OAuth 2.0
-- Mail source: Gmail API (`gmail.readonly`)
-- AI scan: Groq (with heuristic fallback)
+✨ Key Features
+Magnetic Intelligence UI: Physics-based panel transitions using Framer Motion that respond to user intent with weighted momentum.
 
-## What is implemented
-- Google Sign-In flow.
-- Fetch inbox emails from Gmail API.
-- AI classification into `safe`, `suspicious`, `phishing`.
-- 3-column responsive UI (filters, mail list, details).
-- SQLite persistence per user.
-- On logout: user row is deleted, and all related scanned email records are deleted automatically.
+Electric Ink Glow System: Real-time visual risk heuristics (Safe, Suspicious, Phishing) that pulse based on threat severity.
 
-## Backend setup
-1. `cd backend`
-2. `python -m venv .venv`
-3. Windows PowerShell: `.\\.venv\\Scripts\\Activate.ps1`
-4. `pip install -r requirements.txt`
-5. `Copy-Item .env.example .env`
-6. Fill `.env` with Google OAuth + Groq keys.
-7. `uvicorn app.main:app --reload --port 8000`
+Editorial Typography: High-contrast, bold design system (2,700+ lines of custom CSS) for a world-class information hierarchy.
 
-## Frontend setup
-1. `cd frontend`
-2. `npm install`
-3. `npm run dev`
-4. Open `http://localhost:5173`
+Staggered Content Reveal: Sequential data "fly-ins" orchestrated to reduce cognitive load during complex security audits.
 
-## Google Cloud config
-1. Create OAuth client credentials (Web application).
-2. Add redirect URI: `http://localhost:8000/auth/google/callback`
-3. Enable Gmail API in the project.
-4. Put client ID/secret in `backend/.env`.
+Privacy-First Analysis: Behavioral scanning and domain reputation checks without the need to store sensitive private content.
 
-## Notes
-- This is a college-level MVP. Session storage is in-memory.
-- For production:
-  - Use Redis/DB-backed sessions.
-  - Encrypt tokens at rest.
-  - Add background scanning queue.
-  - Add proper token refresh handling.
+🛠️ Technical Stack
+Frontend: React.js, Tailwind CSS, Framer Motion (for hardware-accelerated transforms).
 
-## Model quality workflow
-- Label corrections API: `PATCH /emails/{id}/label?label=safe|suspicious|phishing`
-- Export labeled dataset: `python tools/export_dataset.py ...` (run from `backend/`)
-- Evaluate current classifier: `python tools/evaluate_classifier.py ...`
-- Full guide: `backend/TRAINING.md`
+Backend: Python (Data Structures & Algorithms for risk scoring).
+
+API Integration: Google OAuth 2.0 & Gmail API for secure, read-only environment scanning.
+
+🎨 Design Philosophy
+Unlike generic "clones," InkTrace follows a specialized Security Station aesthetic.
+
+The Ink Stroke: We replaced standard shadows with 1.5px solid ink borders to create a "blueprint" technical feel.
+
+Spatial Consistency: Used a 24px gutter and floating "tablet" margins to ensure the workspace feels expansive and premium.
+
+Visual Signals: Leveraging the "Glassmorphism" effect and focus-state blurring to direct analyst attention to critical findings.
