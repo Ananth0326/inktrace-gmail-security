@@ -1,0 +1,11 @@
+# Secrets
+.env
+backend/.env
+
+# Databases
+*.db
+backend/email_scanner.db
+
+# Dependencies
+node_modules/
+__pycache__/

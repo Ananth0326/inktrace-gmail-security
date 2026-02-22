@@ -1,0 +1,8 @@
+{
+  "input_rows": 91,
+  "hard_negative_candidates": 8,
+  "top_candidate_domains": {
+    "linkedin.com": 7,
+    "hw-mail.glich.co": 1
+  }
+}

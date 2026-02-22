@@ -1,0 +1,13 @@
+{
+  "input_rows": 96,
+  "after_dedup_and_empty_filter": 93,
+  "removed_duplicates": 3,
+  "removed_empty_rows": 0,
+  "clean_rows": 91,
+  "noisy_rows": 2,
+  "noise_breakdown": {
+    "high_risk_pattern_but_labeled_safe": 1,
+    "newsletter_like_but_labeled_phishing": 1,
+    "domain_prior_label_conflict": 1
+  }
+}
