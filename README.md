@@ -1,29 +1,74 @@
-🖋️ InkTrace: Mail Risk Intelligence
-InkTrace is a professional-grade security intelligence layer for Gmail, designed to analyze domain behavior and AI risk signals with a premium, motion-rich interface. It transforms traditional email analysis into a high-contrast, "Risk-First" workspace that emphasizes explainable AI and tactile interaction.
+🖋️ InkTrace: AI-Powered Gmail Security Agent
+InkTrace is a sophisticated security platform that uses a hybrid AI pipeline to detect phishing and suspicious activities in real-time. It combines traditional rule-based filtering with modern Semantic Search (RAG) and Large Language Models (LLM) to provide a "second pair of eyes" for your inbox.
 
-✨ Key Features
-Magnetic Intelligence UI: Physics-based panel transitions using Framer Motion that respond to user intent with weighted momentum.
+🚀 Key Features
+3-Stage Hybrid AI Pipeline: Combines Regex Rules, Local Semantic Search, and LLM reasoning (Llama 3 via Groq) for maximum accuracy.
+
+Magnetic Intelligence UI: Physics-based panel transitions using Framer Motion that respond to user intent.
 
 Electric Ink Glow System: Real-time visual risk heuristics (Safe, Suspicious, Phishing) that pulse based on threat severity.
 
-Editorial Typography: High-contrast, bold design system (2,700+ lines of custom CSS) for a world-class information hierarchy.
+Privacy-First Design: All vector embeddings are generated locally using fastembed. Your email content is never sent to third-party services for training.
 
-Staggered Content Reveal: Sequential data "fly-ins" orchestrated to reduce cognitive load during complex security audits.
+Explainable Security: Every verdict comes with a detailed reasoning breakdown (e.g., "Brand spoofing detected + Urgency signals").
 
-Privacy-First Analysis: Behavioral scanning and domain reputation checks without the need to store sensitive private content.
+🛠️ Tech Stack
+Frontend
+React (Vite): Component-based architecture with hooks for state management.
 
-🛠️ Technical Stack
-Frontend: React.js, Tailwind CSS, Framer Motion (for hardware-accelerated transforms).
+Framer Motion: Hardware-accelerated transforms for high-performance animations.
 
-Backend: Python (Data Structures & Algorithms for risk scoring).
+Vanilla CSS: Custom design system with over 2,700 lines of code for precise layout control.
 
-API Integration: Google OAuth 2.0 & Gmail API for secure, read-only environment scanning.
+Backend
+FastAPI: Asynchronous Python framework for high-concurrency email processing.
+
+SQLAlchemy + SQLite: Robust local data storage and ORM.
+
+Google OAuth2: Secure, read-only authentication via Google Identity.
+
+AI & Machine Learning
+Groq (Llama 3): Ultra-fast LLM inference for final threat classification.
+
+FastEmbed: Local CPU-optimized vector embedding generation.
+
+Numpy: Vector operations for semantic similarity (Cosine Similarity).
+
+🏗️ Architecture Design
+InkTrace follows a Retrieval-Augmented Generation (RAG) architecture:
+
+Ingestion: Background threads fetch emails via Gmail API.
+
+Vectorization: Content is converted into 384-dimensional vectors locally.
+
+Retrieval: The system compares new emails against a local database of known threats using Cosine Similarity.
+
+Inference: A context-aware prompt is sent to the LLM (Llama 3) to arrive at the final verdict.
 
 🎨 Design Philosophy
-Unlike generic "clones," InkTrace follows a specialized Security Station aesthetic.
-
 The Ink Stroke: We replaced standard shadows with 1.5px solid ink borders to create a "blueprint" technical feel.
 
-Spatial Consistency: Used a 24px gutter and floating "tablet" margins to ensure the workspace feels expansive and premium.
+Editorial Typography: High-contrast typography and bold headers (800 weight) ensure clear information hierarchy.
 
-Visual Signals: Leveraging the "Glassmorphism" effect and focus-state blurring to direct analyst attention to critical findings.
+Information Pacing: Staggered reveals (0.08s delay) ensure the analyst digests risk signals sequentially.
+
+🚀 Getting Started
+Clone the Repository: git clone https://github.com/Ananth0326/inktrace-gmail-security.git
+
+Setup Backend:
+
+cd backend
+
+Create .env file from .env.example.
+
+pip install -r requirements.txt
+
+uvicorn app.main:app --reload
+
+Setup Frontend:
+
+cd frontend
+
+npm install
+
+npm run dev
