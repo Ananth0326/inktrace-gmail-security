@@ -2,6 +2,33 @@
 
 InkTrace is a sophisticated security platform that uses a hybrid AI pipeline to detect phishing and suspicious activities in real-time. It combines traditional rule-based filtering with modern Semantic Search (RAG) and Large Language Models (LLM) to provide a "second pair of eyes" for your inbox.
 
+
+---
+
+##  How it Works: The User Journey
+
+InkTrace is designed to be as intuitive as a standard inbox but as powerful as a security operations center.
+
+### 1. Secure Onboarding
+- **Action**: User arrives at the "Hero" landing page and clicks "Continue with Google."
+- **Behind the Scenes**: The frontend triggers an OAuth2 flow. Your Python backend exchanges the secure code for a Read-Only Access Token via the Google Identity Platform.
+
+### 2. Intelligent Ingestion
+- **Action**: User clicks "Run Security Scan."
+- **Behind the Scenes**: A background thread in FastAPI pulls the latest 500 emails. Each email is instantly vectorized using `fastembed` and stored in your local SQLite memory.
+
+### 3. The 3-Layer Audit
+- **Action**: The dashboard populates with Risk Labels (Safe, Suspicious, Phishing).
+- **Behind the Scenes**: The Hybrid Classifier runs. It matches patterns (Regex), compares them to past threats (Semantic Search), and asks the LLM for a final verdict based on that context.
+
+### 4. Explainable Security
+- **Action**: User clicks a "Suspicious" email to see the Right Panel.
+- **Behind the Scenes**: The UI uses Framer Motion to "slide" the analysis panel in. It displays the AI's step-by-step reasoning (e.g., "Mismatched sender domain + urgent language detected").
+
+### 5. Active Feedback Loop
+- **Action**: User marks an email as "Safe" if it was misidentified.
+- **Behind the Scenes**: The system performs **Active Learning**. It updates the local vector database instantly, ensuring similar emails are correctly labeled in the next scan.
+
 ---
 
 ## 🚀 Key Features
@@ -11,6 +38,14 @@ InkTrace is a sophisticated security platform that uses a hybrid AI pipeline to 
 -   **Electric Ink Glow System**: Real-time visual risk heuristics (Safe, Suspicious, Phishing) that pulse based on threat severity.
 -   **Privacy-First Design**: All vector embeddings are generated locally using `fastembed`. Your email content is never sent to third-party services for training.
 -   **Explainable Security**: Every verdict comes with a detailed reasoning breakdown (e.g., "Brand spoofing detected + Urgency signals").
+
+
+## 🏗️ Architecture Design
+InkTrace follows a Retrieval-Augmented Generation (RAG) architecture:
+1.  **Ingestion**: Background threads fetch emails via Gmail API.
+2.  **Vectorization**: Content is converted into 384-dimensional vectors locally.
+3.  **Retrieval**: The system compares new emails against a local database of known threats using Cosine Similarity.
+4.  **Inference**: A context-aware prompt is sent to the LLM (Llama 3) to arrive at the final verdict.
 
 ---
 
@@ -30,15 +65,6 @@ InkTrace is a sophisticated security platform that uses a hybrid AI pipeline to 
 - **Groq (Llama 3)**: Ultra-fast LLM inference for final threat classification.
 - **FastEmbed**: Local CPU-optimized vector embedding generation.
 - **Numpy**: Vector operations for semantic similarity (Cosine Similarity).
-
----
-
-## 🏗️ Architecture Design
-InkTrace follows a Retrieval-Augmented Generation (RAG) architecture:
-1.  **Ingestion**: Background threads fetch emails via Gmail API.
-2.  **Vectorization**: Content is converted into 384-dimensional vectors locally.
-3.  **Retrieval**: The system compares new emails against a local database of known threats using Cosine Similarity.
-4.  **Inference**: A context-aware prompt is sent to the LLM (Llama 3) to arrive at the final verdict.
 
 ---
 
