@@ -1,535 +1,576 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import {
+  getLabelBadgeCSSClass,
+  getPanelGlowCSSClass,
+  formatDate,
+  extractDomainName,
+  inferRiskSignals,
+  isHighRiskLabel,
+  getFirstReasonLine,
+  getHighestRiskFactor,
+  getDomainTrustStatus,
+  highlightImportantWords,
+  calculateOverallRiskLevel,
+  calculateTimeAgoText,
+  groupFindingsByCategory,
+} from "./utils/helpers";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
-const PAGE_SIZE = 120;
+const API_BASE_URL = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+const NUMBER_OF_EMAILS_PER_PAGE = 120;
 
-const FILTERS = [
+const FILTER_OPTIONS = [
   { key: "all", label: "All Mail", statKey: "total" },
   { key: "safe", label: "Safe", statKey: "safe" },
   { key: "suspicious", label: "Suspicious", statKey: "suspicious" },
   { key: "phishing", label: "Phishing", statKey: "phishing" },
 ];
 
-const DENSITIES = ["comfortable", "compact"];
-const TRUSTED_DOMAINS = ["linkedin.com", "google.com", "microsoft.com", "github.com", "amazon.com"];
-const HIGHLIGHT_TERMS = ["urgent", "verify", "password", "asap", "confirm", "otp", "invoice"];
-const PANEL_TRANSITION = { duration: 0.5, ease: [0.19, 1, 0.22, 1] };
-const LIST_VARIANTS = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.05 } },
-};
-const ITEM_VARIANTS = {
-  hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1] } },
-};
-const ANALYSIS_CONTAINER_VARIANTS = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.2 } },
-};
-const ANALYSIS_ITEM_VARIANTS = {
-  hidden: { opacity: 0, y: 15 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.19, 1, 0.22, 1] } },
-};
-const ANALYSIS_PANEL_VARIANTS = {
-  hidden: { x: "100%", opacity: 0 },
-  visible: {
-    x: 0,
-    opacity: 1,
-    transition: { ...PANEL_TRANSITION, staggerChildren: 0.05, delayChildren: 0.1 },
-  },
-};
-
-function badgeClass(label) {
-  if (label === "phishing") return "chip chip-danger";
-  if (label === "suspicious") return "chip chip-warn";
-  return "chip chip-safe";
-}
-
-function panelGlowClass(label) {
-  if (label === "phishing") return "glow-danger";
-  if (label === "suspicious") return "glow-suspicious";
-  if (label === "safe") return "glow-safe";
-  return "";
-}
-
-function asDate(value) {
-  if (!value) return "";
-  return new Date(value).toLocaleDateString();
-}
-
-function extractDomain(sender) {
-  const match = (sender || "").match(/@([A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
-  return match ? match[1].toLowerCase() : "";
-}
-
-function inferSignals(mail, blockedDomains = [], blockedSenders = []) {
-  const reason = (mail.reason || "").toLowerCase();
-  const text = `${mail.subject || ""} ${mail.snippet || ""}`.toLowerCase();
-  const sender = (mail.sender || "").toLowerCase();
-  const domain = extractDomain(mail.sender);
-  return {
-    spoof: reason.includes("brand") || reason.includes("lookalike") || reason.includes("domain"),
-    link: reason.includes("url") || reason.includes("link") || text.includes("http"),
-    attachment: text.includes("attachment") || text.includes(".pdf") || text.includes("invoice"),
-    blocked: (domain && blockedDomains.includes(domain)) || blockedSenders.includes(sender),
-  };
-}
-
-function isRiskyLabel(label) {
-  return label === "suspicious" || label === "phishing";
-}
-
-function firstIntel(reasonText) {
-  const lines = (reasonText || "").split(" | ").map((line) => line.trim()).filter(Boolean);
-  return lines.slice(0, 2).join(" | ");
-}
-
-function topRiskFactor(reasonText) {
-  const lines = (reasonText || "").split(" | ").map((line) => line.trim()).filter(Boolean);
-  return lines[0] || "No high-risk factor detected";
-}
-
-function domainTrust(domain, domainCounts) {
-  if (!domain) return { label: "UNKNOWN", cls: "domain-unknown" };
-  if (TRUSTED_DOMAINS.some((d) => domain === d || domain.endsWith(`.${d}`))) {
-    return { label: "TRUSTED", cls: "domain-trusted" };
-  }
-  if ((domainCounts[domain] || 0) <= 1) {
-    return { label: "NEW DOMAIN", cls: "domain-new" };
-  }
-  return { label: "OBSERVED", cls: "domain-observed" };
-}
-
-function highlightSnippet(snippet) {
-  const text = snippet || "";
-  if (!text) return "";
-  const regex = new RegExp(`\\b(${HIGHLIGHT_TERMS.join("|")})\\b`, "gi");
-  const out = [];
-  let last = 0;
-  let match = regex.exec(text);
-  while (match) {
-    const start = match.index;
-    const end = start + match[0].length;
-    if (start > last) out.push(text.slice(last, start));
-    out.push(<mark key={`${start}-${end}`}>{text.slice(start, end)}</mark>);
-    last = end;
-    match = regex.exec(text);
-  }
-  if (last < text.length) out.push(text.slice(last));
-  return out;
-}
-
-function riskLevel(stats) {
-  const total = stats.total || 0;
-  if (!total) return { label: "Low", cls: "risk-low" };
-  const riskRatio = (stats.phishing + stats.suspicious) / total;
-  if (riskRatio >= 0.45) return { label: "High", cls: "risk-high" };
-  if (riskRatio >= 0.2) return { label: "Medium", cls: "risk-medium" };
-  return { label: "Low", cls: "risk-low" };
-}
-
-function timeAgo(isoTs) {
-  if (!isoTs) return "No completed scan yet";
-  const deltaSec = Math.max(0, Math.floor((Date.now() - new Date(isoTs).getTime()) / 1000));
-  if (deltaSec < 60) return `Last scan: ${deltaSec}s ago`;
-  const mins = Math.floor(deltaSec / 60);
-  if (mins < 60) return `Last scan: ${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  return `Last scan: ${hrs}h ago`;
-}
-
-function riskScore(stats) {
-  const total = Math.max(1, stats.total || 0);
-  const weighted = (stats.phishing * 1.0 + stats.suspicious * 0.62 + stats.safe * 0.08) / total;
-  return Math.max(0, Math.min(100, Math.round(weighted * 100)));
-}
-
-function groupedFindings(reasonText) {
-  const lines = (reasonText || "No details")
-    .split(" | ")
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  const grouped = {
-    sender: [],
-    content: [],
-    links: [],
-    urgency: [],
-    other: [],
-  };
-
-  for (const line of lines) {
-    const l = line.toLowerCase();
-    if (l.includes("sender") || l.includes("domain") || l.includes("brand")) grouped.sender.push(line);
-    else if (l.includes("url") || l.includes("link") || l.includes("ip")) grouped.links.push(line);
-    else if (l.includes("urgent") || l.includes("otp") || l.includes("password")) grouped.urgency.push(line);
-    else if (l.includes("lookalike") || l.includes("content") || l.includes("text")) grouped.content.push(line);
-    else grouped.other.push(line);
-  }
-
-  return grouped;
-}
-
 export default function App() {
-  const [session, setSession] = useState(localStorage.getItem("session") || "");
-  const [authError, setAuthError] = useState("");
-  const [emails, setEmails] = useState([]);
-  const [selected, setSelected] = useState(null);
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const [navOpen, setNavOpen] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [syncState, setSyncState] = useState({ status: "idle", processed: 0, saved: 0, error: null });
-  const [filter, setFilter] = useState("all");
-  const [search, setSearch] = useState("");
-  const [error, setError] = useState("");
-  const [stats, setStats] = useState({ total: 0, safe: 0, suspicious: 0, phishing: 0 });
-  const [pageInfo, setPageInfo] = useState({ total: 0, offset: 0, limit: PAGE_SIZE });
-  const [profile, setProfile] = useState({ email: "", name: "" });
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [viewOpen, setViewOpen] = useState(false);
-  const [isMenuAnimating, setIsMenuAnimating] = useState(false);
-  const [isAnalysisAnimating, setIsAnalysisAnimating] = useState(false);
-  const [actionMenuId, setActionMenuId] = useState(null);
-  const [density, setDensity] = useState(localStorage.getItem("density") || "comfortable");
-  const [lastScanAt, setLastScanAt] = useState(localStorage.getItem("lastScanAt") || "");
-  const [analyticsOpen, setAnalyticsOpen] = useState(false);
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [analysisConfidence, setAnalysisConfidence] = useState(0);
-  const [blockedDomains, setBlockedDomains] = useState(() => {
+  // Using fully spelled-out names for state variables so a beginner can understand them easily
+  const [sessionTokenString, setSessionTokenString] = useState(localStorage.getItem("session") || "");
+  const [authenticationErrorMessage, setAuthenticationErrorMessage] = useState("");
+  
+  const [allEmailsList, setAllEmailsList] = useState([]);
+  const [selectedEmailRecord, setSelectedEmailRecord] = useState(null);
+  const [isDetailsPanelOpen, setIsDetailsPanelOpen] = useState(false);
+  const [isNavigationMenuOpen, setIsNavigationMenuOpen] = useState(true);
+  
+  const [isLoadingEmails, setIsLoadingEmails] = useState(false);
+  const [isCurrentlySyncing, setIsCurrentlySyncing] = useState(false);
+  const [backgroundSyncStatusDictionary, setBackgroundSyncStatusDictionary] = useState({ status: "idle", processed: 0, saved: 0, error: null });
+  
+  const [currentFilterKeyText, setCurrentFilterKeyText] = useState("all");
+  const [searchQueryText, setSearchQueryText] = useState("");
+  const [generalErrorMessage, setGeneralErrorMessage] = useState("");
+  
+  const [emailStatisticsDictionary, setEmailStatisticsDictionary] = useState({ total: 0, safe: 0, suspicious: 0, phishing: 0 });
+  const [paginationInfoDictionary, setPaginationInfoDictionary] = useState({ total: 0, offset: 0, limit: NUMBER_OF_EMAILS_PER_PAGE });
+  
+  const [userProfileDictionary, setUserProfileDictionary] = useState({ email: "", name: "" });
+  const [isUserProfileMenuOpen, setIsUserProfileMenuOpen] = useState(false);
+  
+  const [isViewOptionsMenuOpen, setIsViewOptionsMenuOpen] = useState(false);
+  const [openActionMenuEmailIdNumber, setOpenActionMenuEmailIdNumber] = useState(null);
+  const [displayDensityString, setDisplayDensityString] = useState(localStorage.getItem("density") || "comfortable");
+  
+  const [lastCompletedScanTimeString, setLastCompletedScanTimeString] = useState(localStorage.getItem("lastScanAt") || "");
+  const [isAnalyticsPopupOpen, setIsAnalyticsPopupOpen] = useState(false);
+  const [isSearchBarFocused, setIsSearchBarFocused] = useState(false);
+  
+  const [blockedDomainsList, setBlockedDomainsList] = useState(() => {
     try {
-      const raw = localStorage.getItem("blockedDomains");
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
+      const storedDataString = localStorage.getItem("blockedDomains");
+      if (storedDataString) {
+        return JSON.parse(storedDataString);
+      }
+      return [];
+    } catch (errorParsingData) {
       return [];
     }
   });
-  const [blockedSenders, setBlockedSenders] = useState(() => {
+  
+  const [blockedSendersList, setBlockedSendersList] = useState(() => {
     try {
-      const raw = localStorage.getItem("blockedSenders");
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
+      const storedDataString = localStorage.getItem("blockedSenders");
+      if (storedDataString) {
+        return JSON.parse(storedDataString);
+      }
+      return [];
+    } catch (errorParsingData) {
       return [];
     }
   });
-  const profileRef = useRef(null);
-  const viewRef = useRef(null);
 
+  const profileMenuHTMLReference = useRef(null);
+  const viewOptionsMenuHTMLReference = useRef(null);
+
+  // Read URL parameters on first load (for example, when Google redirects back after login)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const sessionFromUrl = params.get("session");
-    const authErrorFromUrl = params.get("auth_error");
-    if (authErrorFromUrl) setAuthError(authErrorFromUrl);
-    if (sessionFromUrl) {
-      localStorage.setItem("session", sessionFromUrl);
-      setSession(sessionFromUrl);
+    const urlParametersList = new URLSearchParams(window.location.search);
+    const sessionTokenFromUrlVariable = urlParametersList.get("session");
+    const authenticationErrorFromUrlVariable = urlParametersList.get("auth_error");
+    
+    if (authenticationErrorFromUrlVariable) {
+      setAuthenticationErrorMessage(authenticationErrorFromUrlVariable);
     }
-    if (sessionFromUrl || authErrorFromUrl) window.history.replaceState({}, "", "/");
+    
+    if (sessionTokenFromUrlVariable) {
+      localStorage.setItem("session", sessionTokenFromUrlVariable);
+      setSessionTokenString(sessionTokenFromUrlVariable);
+    }
+    
+    // Clean up the URL so it looks nice and doesn't have the token in the address bar
+    if (sessionTokenFromUrlVariable || authenticationErrorFromUrlVariable) {
+      window.history.replaceState({}, "", "/");
+    }
   }, []);
 
+  // When session token or filter selection changes, load fresh data from the backend
   useEffect(() => {
-    if (!session) return;
-    loadEmails({ reset: true, token: session });
-    loadStats(session);
-    loadProfile(session);
-  }, [session, filter]);
+    if (sessionTokenString) {
+      fetchEmailsFromBackendFunction({ resetList: true, tokenString: sessionTokenString });
+      fetchEmailStatisticsFromBackendFunction(sessionTokenString);
+      fetchUserProfileFromBackendFunction(sessionTokenString);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionTokenString, currentFilterKeyText]);
+
+  // Automatically save certain preference settings to local storage when they change
+  useEffect(() => {
+    localStorage.setItem("density", displayDensityString);
+  }, [displayDensityString]);
 
   useEffect(() => {
-    if (!DENSITIES.includes(density)) {
-      setDensity("comfortable");
+    if (lastCompletedScanTimeString) {
+      localStorage.setItem("lastScanAt", lastCompletedScanTimeString);
+    }
+  }, [lastCompletedScanTimeString]);
+
+  useEffect(() => {
+    localStorage.setItem("blockedDomains", JSON.stringify(blockedDomainsList));
+  }, [blockedDomainsList]);
+
+  useEffect(() => {
+    localStorage.setItem("blockedSenders", JSON.stringify(blockedSendersList));
+  }, [blockedSendersList]);
+
+  // Add listeners for clicking outside menus (to close them) or hitting the Escape key
+  useEffect(() => {
+    function handleMouseClickEvent(mouseClickEvent) {
+      if (profileMenuHTMLReference.current && !profileMenuHTMLReference.current.contains(mouseClickEvent.target)) {
+        setIsUserProfileMenuOpen(false);
+      }
+      if (viewOptionsMenuHTMLReference.current && !viewOptionsMenuHTMLReference.current.contains(mouseClickEvent.target)) {
+        setIsViewOptionsMenuOpen(false);
+      }
+      if (!mouseClickEvent.target.closest(".row-actions-wrap")) {
+        setOpenActionMenuEmailIdNumber(null);
+      }
+    }
+    
+    function handleKeyDownEvent(keyboardEvent) {
+      if (keyboardEvent.key === "Escape") {
+        setIsUserProfileMenuOpen(false);
+        setIsViewOptionsMenuOpen(false);
+      }
+    }
+    
+    document.addEventListener("mousedown", handleMouseClickEvent);
+    document.addEventListener("keydown", handleKeyDownEvent);
+    
+    return () => {
+      document.removeEventListener("mousedown", handleMouseClickEvent);
+      document.removeEventListener("keydown", handleKeyDownEvent);
+    };
+  }, []);
+
+  // Poll the backend every 2 seconds to check scan progress while a sync is running
+  useEffect(() => {
+    if (!sessionTokenString || !isCurrentlySyncing) {
       return;
     }
-    localStorage.setItem("density", density);
-  }, [density]);
-
-  useEffect(() => {
-    if (lastScanAt) localStorage.setItem("lastScanAt", lastScanAt);
-  }, [lastScanAt]);
-
-  useEffect(() => {
-    localStorage.setItem("blockedDomains", JSON.stringify(blockedDomains));
-  }, [blockedDomains]);
-
-  useEffect(() => {
-    localStorage.setItem("blockedSenders", JSON.stringify(blockedSenders));
-  }, [blockedSenders]);
-
-  useEffect(() => {
-    const onPointerDown = (evt) => {
-      if (!profileRef.current) return;
-      if (!profileRef.current.contains(evt.target)) setProfileOpen(false);
-      if (viewRef.current && !viewRef.current.contains(evt.target)) setViewOpen(false);
-      if (!evt.target.closest(".row-actions-wrap")) setActionMenuId(null);
-    };
-    const onEsc = (evt) => {
-      if (evt.key === "Escape") setProfileOpen(false);
-      if (evt.key === "Escape") setViewOpen(false);
-    };
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("keydown", onEsc);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("keydown", onEsc);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!session || !syncing) return undefined;
-    const id = setInterval(async () => {
+    
+    const pollingIntervalId = setInterval(async () => {
       try {
-        const res = await fetch(`${API_BASE}/emails/sync/status`, {
-          headers: { Authorization: `Bearer ${session}` },
+        const responseFromBackend = await fetch(`${API_BASE_URL}/emails/sync/status`, {
+          headers: { Authorization: `Bearer ${sessionTokenString}` },
         });
-        if (!res.ok) return;
-        const data = await res.json();
-        setSyncState(data);
-        await loadEmails({ reset: true });
-        await loadStats();
-        if (data.status === "completed" || data.status === "failed") {
-          setSyncing(false);
-          if (data.status === "completed") {
-            setLastScanAt(new Date().toISOString());
+        
+        if (!responseFromBackend.ok) {
+          return;
+        }
+        
+        const statusDataDictionary = await responseFromBackend.json();
+        setBackgroundSyncStatusDictionary(statusDataDictionary);
+        
+        // Refresh the lists to show latest found emails safely
+        await fetchEmailsFromBackendFunction({ resetList: true });
+        await fetchEmailStatisticsFromBackendFunction(sessionTokenString);
+        
+        if (statusDataDictionary.status === "completed" || statusDataDictionary.status === "failed") {
+          setIsCurrentlySyncing(false);
+          if (statusDataDictionary.status === "completed") {
+            setLastCompletedScanTimeString(new Date().toISOString());
           }
         }
-      } catch {
-        // ignore transient polling errors
+      } catch (networkError) {
+        // We ignore temporary network issues during polling to preserve the app workflow
       }
     }, 2000);
-    return () => clearInterval(id);
-  }, [session, syncing, filter]);
+    
+    return () => clearInterval(pollingIntervalId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionTokenString, isCurrentlySyncing, currentFilterKeyText]);
 
-  const visibleEmails = useMemo(() => {
-    if (!search) return emails;
-    const q = search.toLowerCase();
-    return emails.filter((mail) =>
-      [mail.subject, mail.sender, mail.snippet, mail.reason].join(" ").toLowerCase().includes(q)
-    );
-  }, [emails, search]);
+  // Derive visible emails using search text in regular readable code
+  let currentlyVisibleEmailsList = allEmailsList;
+  if (searchQueryText !== "") {
+    const lowercaseSearchQueryText = searchQueryText.toLowerCase();
+    currentlyVisibleEmailsList = allEmailsList.filter((emailRecordObject) => {
+      const combinedSearchableText = `${emailRecordObject.subject} ${emailRecordObject.sender} ${emailRecordObject.snippet} ${emailRecordObject.reason}`.toLowerCase();
+      return combinedSearchableText.includes(lowercaseSearchQueryText);
+    });
+  }
 
-  const todayOverview = useMemo(() => {
-    const highRisk = emails.filter((m) => m.label === "phishing" || (m.label === "suspicious" && (m.confidence || 0) >= 85)).length;
-    const domainFreq = {};
-    for (const mail of emails) {
-      const d = extractDomain(mail.sender);
-      if (!d) continue;
-      domainFreq[d] = (domainFreq[d] || 0) + 1;
+  // Calculate today's overview stats manually in clear code instead of complex iterations
+  let highRiskEmailCountNumber = 0;
+  let lookalikeAttackCountNumber = 0;
+  const observedDomainCountsDictionary = {};
+
+  for (let indexNumber = 0; indexNumber < allEmailsList.length; indexNumber++) {
+    const currentEmailRecordObject = allEmailsList[indexNumber];
+    
+    if (currentEmailRecordObject.label === "phishing" || (currentEmailRecordObject.label === "suspicious" && currentEmailRecordObject.confidence >= 85)) {
+      highRiskEmailCountNumber = highRiskEmailCountNumber + 1;
     }
-    const newDomains = Object.values(domainFreq).filter((count) => count === 1).length;
-    const lookalike = emails.filter((m) => (m.reason || "").toLowerCase().includes("lookalike")).length;
-    return { highRisk, newDomains, lookalike };
-  }, [emails]);
-
-  const domainCounts = useMemo(() => {
-    const counts = {};
-    for (const mail of emails) {
-      const d = extractDomain(mail.sender);
-      if (!d) continue;
-      counts[d] = (counts[d] || 0) + 1;
+    
+    if (currentEmailRecordObject.reason && currentEmailRecordObject.reason.toLowerCase().includes("lookalike")) {
+      lookalikeAttackCountNumber = lookalikeAttackCountNumber + 1;
     }
-    return counts;
-  }, [emails]);
+    
+    const singleDomainNameString = extractDomainName(currentEmailRecordObject.sender);
+    if (singleDomainNameString !== "") {
+      if (observedDomainCountsDictionary[singleDomainNameString] !== undefined) {
+        observedDomainCountsDictionary[singleDomainNameString] = observedDomainCountsDictionary[singleDomainNameString] + 1;
+      } else {
+        observedDomainCountsDictionary[singleDomainNameString] = 1;
+      }
+    }
+  }
 
-  const scanStage = useMemo(() => {
-    if (!syncing) return "Idle";
-    if (syncState.saved < 20) return "Analyzing headers...";
-    if (syncState.saved < 80) return "Checking domain reputation...";
-    return "Evaluating AI signals...";
-  }, [syncing, syncState.saved]);
+  let newlyObservedDomainCountNumber = 0;
+  for (const domainKey in observedDomainCountsDictionary) {
+    if (observedDomainCountsDictionary[domainKey] === 1) {
+      newlyObservedDomainCountNumber = newlyObservedDomainCountNumber + 1;
+    }
+  }
 
+  // Calculate display parameters based on sync state
+  let currentScanStageText = "Idle";
+  let scanStepIndexNumber = -1;
+  if (isCurrentlySyncing) {
+    if (backgroundSyncStatusDictionary.saved < 20) {
+      currentScanStageText = "Analyzing headers...";
+      scanStepIndexNumber = 0;
+    } else if (backgroundSyncStatusDictionary.saved < 80) {
+      currentScanStageText = "Checking domain reputation...";
+      scanStepIndexNumber = 1;
+    } else {
+      currentScanStageText = "Evaluating AI signals...";
+      scanStepIndexNumber = 2;
+    }
+  }
+  
+  // Custom Keyboard Shortcuts (J to go down, K to go up, Enter to open emails)
   useEffect(() => {
-    if (!detailsOpen || !selected) {
-      setAnalysisConfidence(0);
+    function handleKeyboardHotkeysEvent(keyboardEvent) {
+      // Don't trigger hotkeys if typing in the search box
+      if (document.activeElement !== null && (document.activeElement.tagName.toLowerCase() === "input" || document.activeElement.tagName.toLowerCase() === "textarea")) {
+        return; 
+      }
+      
+      if (currentlyVisibleEmailsList.length === 0) {
+        return;
+      }
+
+      let currentSelectionIndexNumber = 0;
+      if (selectedEmailRecord !== null) {
+        currentSelectionIndexNumber = currentlyVisibleEmailsList.findIndex((emailRecordItem) => emailRecordItem.id === selectedEmailRecord.id);
+        if (currentSelectionIndexNumber === -1) {
+            currentSelectionIndexNumber = 0;
+        }
+      }
+
+      if (keyboardEvent.key === "j") {
+        let nextIndexNumber = currentSelectionIndexNumber + 1;
+        if (nextIndexNumber >= currentlyVisibleEmailsList.length) {
+          nextIndexNumber = currentlyVisibleEmailsList.length - 1;
+        }
+        setSelectedEmailRecord(currentlyVisibleEmailsList[nextIndexNumber]);
+      } else if (keyboardEvent.key === "k") {
+        let previousIndexNumber = currentSelectionIndexNumber - 1;
+        if (previousIndexNumber < 0) {
+          previousIndexNumber = 0;
+        }
+        setSelectedEmailRecord(currentlyVisibleEmailsList[previousIndexNumber]);
+      } else if (keyboardEvent.key === "Enter" && selectedEmailRecord !== null) {
+        setIsDetailsPanelOpen(true);
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyboardHotkeysEvent);
+    return () => document.removeEventListener("keydown", handleKeyboardHotkeysEvent);
+  }, [currentlyVisibleEmailsList, selectedEmailRecord]);
+
+  // --- Backend communication functions ---
+
+  async function fetchEmailsFromBackendFunction({ resetList = false, tokenString = sessionTokenString } = {}) {
+    if (!tokenString) {
+        return;
+    }
+    
+    let nextOffsetAmountNumber = paginationInfoDictionary.offset + paginationInfoDictionary.limit;
+    if (resetList === true) {
+      nextOffsetAmountNumber = 0;
+    }
+    
+    setIsLoadingEmails(true);
+    setGeneralErrorMessage("");
+    
+    try {
+      let labelFilterUrlParameter = "";
+      if (currentFilterKeyText !== "all") {
+        labelFilterUrlParameter = `&label=${currentFilterKeyText}`;
+      }
+      
+      const responseFromBackend = await fetch(`${API_BASE_URL}/emails?limit=${NUMBER_OF_EMAILS_PER_PAGE}&offset=${nextOffsetAmountNumber}${labelFilterUrlParameter}`, {
+        headers: { Authorization: `Bearer ${tokenString}` },
+      });
+      
+      if (!responseFromBackend.ok) {
+        throw new Error("Failed to load emails from the server.");
+      }
+      
+      const responseDataDictionary = await responseFromBackend.json();
+      const loadedEmailRowsList = responseDataDictionary.items || [];
+      
+      if (resetList === true) {
+        setAllEmailsList(loadedEmailRowsList);
+        
+        if (loadedEmailRowsList.length > 0) {
+            setSelectedEmailRecord(loadedEmailRowsList[0]);
+        } else {
+            setSelectedEmailRecord(null);
+        }
+        
+      } else {
+        // Add new emails to the end of the list
+        setAllEmailsList([...allEmailsList, ...loadedEmailRowsList]);
+      }
+      
+      setPaginationInfoDictionary({ 
+        total: responseDataDictionary.total || loadedEmailRowsList.length, 
+        offset: nextOffsetAmountNumber, 
+        limit: responseDataDictionary.limit || NUMBER_OF_EMAILS_PER_PAGE 
+      });
+      
+    } catch (networkOrSystemError) {
+      setGeneralErrorMessage(networkOrSystemError.message);
+    } finally {
+      setIsLoadingEmails(false);
+    }
+  }
+
+  function handleMailListScrollEvent(scrollEvent) {
+    const scrollableElementHTML = scrollEvent.currentTarget;
+    const distanceToBottomNumber = scrollableElementHTML.scrollHeight - scrollableElementHTML.scrollTop - scrollableElementHTML.clientHeight;
+    
+    const isNearBottomBoolean = distanceToBottomNumber < 80;
+    
+    if (isNearBottomBoolean === false || isLoadingEmails === true) {
       return;
     }
-    const next = Math.max(0, Math.min(100, selected.confidence || 0));
-    setAnalysisConfidence(0);
-    const id = window.setTimeout(() => setAnalysisConfidence(next), 40);
-    return () => window.clearTimeout(id);
-  }, [detailsOpen, selected?.id, selected?.confidence]);
+    
+    // Stop trying to load more if we've already loaded everything
+    if (allEmailsList.length >= paginationInfoDictionary.total) {
+      return;
+    }
+    
+    fetchEmailsFromBackendFunction();
+  }
 
-  const scanStepIndex = useMemo(() => {
-    if (!syncing) return -1;
-    if (syncState.saved < 20) return 0;
-    if (syncState.saved < 80) return 1;
-    return 2;
-  }, [syncing, syncState.saved]);
-
-  useEffect(() => {
-    const onHotkeys = (evt) => {
-      const tag = (document.activeElement?.tagName || "").toLowerCase();
-      if (tag === "input" || tag === "textarea") return;
-      if (!visibleEmails.length) return;
-
-      const currentIdx = selected ? visibleEmails.findIndex((m) => m.id === selected.id) : 0;
-      if (evt.key === "j") {
-        const next = Math.min(visibleEmails.length - 1, Math.max(0, currentIdx + 1));
-        setSelected(visibleEmails[next]);
-      } else if (evt.key === "k") {
-        const prev = Math.max(0, currentIdx - 1);
-        setSelected(visibleEmails[prev]);
-      } else if (evt.key === "Enter" && selected) {
-        setDetailsOpen(true);
+  async function fetchEmailStatisticsFromBackendFunction(tokenString = sessionTokenString) {
+    if (!tokenString) {
+        return;
+    }
+    
+    try {
+      const responseFromBackend = await fetch(`${API_BASE_URL}/emails/stats`, {
+        headers: { Authorization: `Bearer ${tokenString}` },
+      });
+      
+      if (!responseFromBackend.ok) {
+        return;
       }
-    };
-
-    document.addEventListener("keydown", onHotkeys);
-    return () => document.removeEventListener("keydown", onHotkeys);
-  }, [visibleEmails, selected]);
-
-  async function loadEmails({ reset = false, token = session } = {}) {
-    if (!token) return;
-    const nextOffset = reset ? 0 : pageInfo.offset + pageInfo.limit;
-    setLoading(true);
-    setError("");
-    try {
-      const labelQuery = filter === "all" ? "" : `&label=${filter}`;
-      const res = await fetch(`${API_BASE}/emails?limit=${PAGE_SIZE}&offset=${nextOffset}${labelQuery}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      
+      const responseDataDictionary = await responseFromBackend.json();
+      
+      setEmailStatisticsDictionary({
+        total: responseDataDictionary.total || 0,
+        safe: responseDataDictionary.safe || 0,
+        suspicious: responseDataDictionary.suspicious || 0,
+        phishing: responseDataDictionary.phishing || 0,
       });
-      if (!res.ok) throw new Error("Failed to load emails");
-      const data = await res.json();
-      const rows = data.items || [];
-      const merged = reset ? rows : [...emails, ...rows];
-      setEmails(merged);
-      setSelected((old) => {
-        if (reset) return rows[0] || null;
-        return old || rows[0] || null;
-      });
-      setPageInfo({ total: data.total || rows.length, offset: nextOffset, limit: data.limit || PAGE_SIZE });
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
+    } catch (networkError) {
+      // Ignore network errors so the app doesn't break if one request fails momentarily
     }
   }
 
-  function handleMailScroll(evt) {
-    const el = evt.currentTarget;
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-    if (!nearBottom || loading) return;
-    if (emails.length >= pageInfo.total) return;
-    loadEmails();
-  }
-
-  async function loadStats(token = session) {
-    if (!token) return;
+  async function fetchUserProfileFromBackendFunction(tokenString = sessionTokenString) {
+    if (!tokenString) {
+        return;
+    }
+        
     try {
-      const res = await fetch(`${API_BASE}/emails/stats`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const responseFromBackend = await fetch(`${API_BASE_URL}/me`, {
+        headers: { Authorization: `Bearer ${tokenString}` },
       });
-      if (!res.ok) return;
-      const data = await res.json();
-      setStats({
-        total: data.total || 0,
-        safe: data.safe || 0,
-        suspicious: data.suspicious || 0,
-        phishing: data.phishing || 0,
+      
+      if (!responseFromBackend.ok) {
+        return;
+      }
+      
+      const responseDataDictionary = await responseFromBackend.json();
+      setUserProfileDictionary({ 
+          email: responseDataDictionary.email || "", 
+          name: responseDataDictionary.name || "" 
       });
-    } catch {
-      // ignore transient stats failures
+    } catch (networkError) {
+      // Ignore network errors gently
     }
   }
 
-  async function loadProfile(token = session) {
-    if (!token) return;
+  async function handleGoogleSignInButtonClick() {
     try {
-      const res = await fetch(`${API_BASE}/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      setProfile({ email: data.email || "", name: data.name || "" });
-    } catch {
-      // ignore transient profile failures
+      setAuthenticationErrorMessage("");
+      const redirectTargetUrlString = window.location.origin;
+      const responseFromBackend = await fetch(`${API_BASE_URL}/auth/google/login?redirect_to=${encodeURIComponent(redirectTargetUrlString)}`);
+      
+      if (!responseFromBackend.ok) {
+        throw new Error("Failed to start Google sign-in process.");
+      }
+      
+      const responseDataDictionary = await responseFromBackend.json();
+      if (!responseDataDictionary || !responseDataDictionary.auth_url) {
+        throw new Error("Google auth URL is missing from backend response.");
+      }
+      
+      // Navigate to Google Login page directly
+      window.location.href = responseDataDictionary.auth_url;
+      
+    } catch (authenticationError) {
+      setAuthenticationErrorMessage(authenticationError.message || "Google sign-in failed unexpectedly.");
     }
   }
 
-  async function signIn() {
-    try {
-      setAuthError("");
-      const redirectTo = window.location.origin;
-      const res = await fetch(`${API_BASE}/auth/google/login?redirect_to=${encodeURIComponent(redirectTo)}`);
-      if (!res.ok) throw new Error("Failed to start Google sign-in.");
-      const data = await res.json();
-      if (!data?.auth_url) throw new Error("Google auth URL missing from backend response.");
-      window.location.href = data.auth_url;
-    } catch (e) {
-      setAuthError(e.message || "Google sign-in failed.");
+  async function startEmailSyncProcessFunction() {
+    if (!sessionTokenString) {
+        return;
     }
-  }
-
-  async function syncEmails() {
-    if (!session) return;
-    setSyncing(true);
-    setSyncState({ status: "running", processed: 0, saved: 0, error: null });
-    setError("");
+    
+    setIsCurrentlySyncing(true);
+    setBackgroundSyncStatusDictionary({ status: "running", processed: 0, saved: 0, error: null });
+    setGeneralErrorMessage("");
+    
     try {
-      const res = await fetch(`${API_BASE}/emails/sync?max_results=500&page_size=250`, {
+      const responseFromBackend = await fetch(`${API_BASE_URL}/emails/sync?max_results=500&page_size=250`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${session}` },
+        headers: { Authorization: `Bearer ${sessionTokenString}` },
       });
-      if (!res.ok) throw new Error("Sync failed");
-      await loadEmails({ reset: true });
-      await loadStats();
-    } catch (e) {
-      setError(e.message);
-      setSyncing(false);
+      
+      if (!responseFromBackend.ok) {
+        throw new Error("Sync failed to start correctly.");
+      }
+      
+      await fetchEmailsFromBackendFunction({ resetList: true });
+      await fetchEmailStatisticsFromBackendFunction();
+      
+    } catch (syncError) {
+      setGeneralErrorMessage(syncError.message);
+      setIsCurrentlySyncing(false);
     }
   }
 
-  async function logout() {
-    if (!session) return;
-    await fetch(`${API_BASE}/auth/logout`, {
+  async function handleUserLogoutButtonClick() {
+    if (!sessionTokenString) {
+        return;
+    }
+    
+    await fetch(`${API_BASE_URL}/auth/logout`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${session}` },
+      headers: { Authorization: `Bearer ${sessionTokenString}` },
     });
+    
     localStorage.removeItem("session");
-    setSession("");
-    setEmails([]);
-    setSelected(null);
-    setSyncing(false);
-    setSyncState({ status: "idle", processed: 0, saved: 0, error: null });
+    setSessionTokenString("");
+    setAllEmailsList([]);
+    setSelectedEmailRecord(null);
+    setIsCurrentlySyncing(false);
+    setBackgroundSyncStatusDictionary({ status: "idle", processed: 0, saved: 0, error: null });
   }
 
-  async function quickRelabel(emailId, label) {
-    if (!session || !emailId) return;
+  async function quickRelabelEmailToProvideFeedbackFunction(emailIdNumber, newLabelTextString) {
+    if (!sessionTokenString || !emailIdNumber) {
+        return;
+    }
+        
     try {
-      const res = await fetch(`${API_BASE}/emails/${emailId}/label?label=${label}`, {
+      const responseFromBackend = await fetch(`${API_BASE_URL}/emails/${emailIdNumber}/label?label=${newLabelTextString}`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${session}` },
+        headers: { Authorization: `Bearer ${sessionTokenString}` },
       });
-      if (!res.ok) return;
-      setEmails((prev) => prev.map((m) => (m.id === emailId ? { ...m, label } : m)));
-      if (selected?.id === emailId) setSelected((old) => ({ ...old, label }));
-      loadStats();
-    } catch {
-      // keep UI non-blocking for quick actions
+      
+      if (!responseFromBackend.ok) {
+        return;
+      }
+      
+      // Update local state without waiting for a full fetch to appear fast
+      setAllEmailsList((previousEmailsList) => {
+        return previousEmailsList.map((individualEmailRecord) => {
+          if (individualEmailRecord.id === emailIdNumber) {
+            return { ...individualEmailRecord, label: newLabelTextString };
+          }
+          return individualEmailRecord;
+        });
+      });
+      
+      if (selectedEmailRecord && selectedEmailRecord.id === emailIdNumber) {
+        setSelectedEmailRecord({ ...selectedEmailRecord, label: newLabelTextString });
+      }
+      
+      fetchEmailStatisticsFromBackendFunction();
+      
+    } catch (relabelError) {
+      // Keep UI quick and ignore temporary API issues
     }
   }
 
-  function blockSelectedSender() {
-    if (!selected) return;
-    const domain = extractDomain(selected.sender);
-    if (!domain) return;
-    setBlockedDomains((prev) => (prev.includes(domain) ? prev : [...prev, domain]));
+  function blockSenderDomainImmediatelyFunction(senderAddressString) {
+    const extractedDomainNameString = extractDomainName(senderAddressString);
+    if (!extractedDomainNameString) {
+        return;
+    }
+    
+    setBlockedDomainsList((previousList) => {
+      if (previousList.includes(extractedDomainNameString)) {
+        return previousList;
+      }
+      return [...previousList, extractedDomainNameString];
+    });
   }
 
-  function blockDomainFromSender(sender) {
-    const domain = extractDomain(sender);
-    if (!domain) return;
-    setBlockedDomains((prev) => (prev.includes(domain) ? prev : [...prev, domain]));
+  function blockSenderAddressImmediatelyFunction(senderAddressString) {
+    if (!senderAddressString) {
+        return;
+    }
+    
+    const normalizedSenderTextString = senderAddressString.toLowerCase().trim();
+    if (!normalizedSenderTextString) {
+        return;
+    }
+    
+    setBlockedSendersList((previousList) => {
+      if (previousList.includes(normalizedSenderTextString)) {
+        return previousList;
+      }
+      return [...previousList, normalizedSenderTextString];
+    });
   }
 
-  function blockSenderAddress(sender) {
-    const normalized = (sender || "").toLowerCase().trim();
-    if (!normalized) return;
-    setBlockedSenders((prev) => (prev.includes(normalized) ? prev : [...prev, normalized]));
-  }
+  // --- Rendering Functions ---
 
-  if (!session) {
+  // Show "Landing Screen" if not logged in
+  if (!sessionTokenString) {
     return (
       <div className="auth-shell">
         <div className="auth-grid-bg" />
@@ -545,9 +586,11 @@ export default function App() {
               <p className="trust-inline">
                 Secure Google OAuth | Read-only analysis | Explainable AI reasoning
               </p>
-              {authError && <div className="error-box">{authError}</div>}
+              
+              {authenticationErrorMessage && <div className="error-box">{authenticationErrorMessage}</div>}
+              
               <div className="auth-cta-row">
-                <button className="btn btn-primary auth-cta" onClick={signIn}>
+                <button className="btn btn-primary auth-cta" onClick={handleGoogleSignInButtonClick}>
                   Continue With Google
                 </button>
                 <a className="btn btn-ghost auth-cta-secondary" href="#how-it-works">
@@ -555,6 +598,7 @@ export default function App() {
                 </a>
               </div>
             </div>
+            
             <div className="auth-right">
               <div className="preview-card">
                 <div className="preview-top">
@@ -606,91 +650,103 @@ export default function App() {
               without storing your Gmail password.
             </p>
           </section>
-
         </div>
       </div>
     );
   }
 
+  // Calculate some state classes for visual layout effects
+  let appShellClassesString = "app-shell premium-grain mode-workspace";
+  if (displayDensityString === "compact") {
+      appShellClassesString = appShellClassesString + " density-compact";
+  } else {
+      appShellClassesString = appShellClassesString + " density-comfortable";
+  }
+  
+  if (isCurrentlySyncing) {
+      appShellClassesString = appShellClassesString + " is-syncing";
+  }
+
+  let appFrameClassesString = "app-frame";
+  if (isSearchBarFocused) {
+      appFrameClassesString = appFrameClassesString + " search-focused";
+  }
+  
+  let workspaceClassesString = "workspace motion-layout";
+  if (isDetailsPanelOpen) {
+      workspaceClassesString = workspaceClassesString + " details-open";
+  }
+
+  // RENDER MAIN APPLICATION 
   return (
-    <div className={`app-shell premium-grain density-${density} mode-workspace ${syncing ? "is-syncing" : ""}`}>
-      <div className={`app-frame ${isSearchFocused ? "search-focused" : ""}`}>
+    <div className={appShellClassesString}>
+      <div className={appFrameClassesString}>
+        
+        {/* --- TOP NAVIGATION BAR --- */}
         <header className="topbar">
           <div className="brand-cell">
             <button
-              className={navOpen ? "btn btn-ghost burger brand-burger is-open" : "btn btn-ghost burger brand-burger"}
-              onClick={() => setNavOpen((open) => !open)}
+              className={isNavigationMenuOpen ? "btn btn-ghost burger brand-burger is-open" : "btn btn-ghost burger brand-burger"}
+              onClick={() => setIsNavigationMenuOpen(!isNavigationMenuOpen)}
               aria-label="Toggle menu"
             >
               {"\u2630"}
             </button>
             <div>
-              <h2 className={`brand-title ${syncing ? "ai-active" : ""}`}>InkTrace</h2>
+              <h2 className={`brand-title ${isCurrentlySyncing ? "ai-active" : ""}`}>InkTrace</h2>
               <p className="brand-subtitle">Mail Risk Intelligence</p>
             </div>
           </div>
+          
           <div className="search-cell">
-            <motion.input
+            <input
               placeholder="Search sender, subject, snippet, finding..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onFocus={() => setIsSearchFocused(true)}
-              onBlur={() => setIsSearchFocused(false)}
-              whileFocus={{ scale: 1.02, boxShadow: "0 0 15px rgba(124, 58, 237, 0.1)" }}
+              value={searchQueryText}
+              onChange={(e) => setSearchQueryText(e.target.value)}
+              onFocus={() => setIsSearchBarFocused(true)}
+              onBlur={() => setIsSearchBarFocused(false)}
             />
           </div>
+          
           <div className="action-cell">
-            <motion.button
+            <button
               className="btn btn-primary scan-btn"
-              onClick={syncEmails}
-              disabled={syncing}
-              animate={
-                syncing
-                  ? {
-                      boxShadow: [
-                        "0px 0px 0px rgba(124, 58, 237, 0)",
-                        "0px 0px 12px rgba(124, 58, 237, 0.4)",
-                        "0px 0px 0px rgba(124, 58, 237, 0)",
-                      ],
-                    }
-                  : { boxShadow: "0 10px 20px rgba(124, 92, 255, 0.22)" }
-              }
-              transition={
-                syncing
-                  ? { boxShadow: { repeat: Infinity, duration: 2 } }
-                  : { boxShadow: { duration: 0.2 } }
-              }
+              onClick={startEmailSyncProcessFunction}
+              disabled={isCurrentlySyncing}
             >
-              {syncing && <span className="live-dot" aria-hidden="true" />}
-              {syncing ? `Scanning ${syncState.saved}` : "Scan Environment"}
-            </motion.button>
-            <button className="btn btn-ghost density-toggle" onClick={() => setAnalyticsOpen((v) => !v)}>
+              {isCurrentlySyncing && <span className="live-dot" aria-hidden="true" />}
+              {isCurrentlySyncing ? `Scanning ${backgroundSyncStatusDictionary.saved}` : "Scan Environment"}
+            </button>
+            
+            <button className="btn btn-ghost density-toggle" onClick={() => setIsAnalyticsPopupOpen(!isAnalyticsPopupOpen)}>
               View Analytics
             </button>
-            <div className="view-pop-wrap" ref={viewRef}>
+            
+            <div className="view-pop-wrap" ref={viewOptionsMenuHTMLReference}>
               <button
                 className="btn btn-ghost density-toggle view-trigger"
                 title="View options"
-                onClick={() => setViewOpen((v) => !v)}
+                onClick={() => setIsViewOptionsMenuOpen(!isViewOptionsMenuOpen)}
                 aria-label="Open view options"
               >
                 {"\u2637"}
               </button>
-              <div className={viewOpen ? "view-pop open" : "view-pop"}>
+              
+              <div className={isViewOptionsMenuOpen ? "view-pop open" : "view-pop"}>
                 <button
-                  className={density === "comfortable" ? "view-option active" : "view-option"}
+                  className={displayDensityString === "comfortable" ? "view-option active" : "view-option"}
                   onClick={() => {
-                    setDensity("comfortable");
-                    setViewOpen(false);
+                    setDisplayDensityString("comfortable");
+                    setIsViewOptionsMenuOpen(false);
                   }}
                 >
                   Comfortable
                 </button>
                 <button
-                  className={density === "compact" ? "view-option active" : "view-option"}
+                  className={displayDensityString === "compact" ? "view-option active" : "view-option"}
                   onClick={() => {
-                    setDensity("compact");
-                    setViewOpen(false);
+                    setDisplayDensityString("compact");
+                    setIsViewOptionsMenuOpen(false);
                   }}
                 >
                   Compact
@@ -700,24 +756,26 @@ export default function App() {
                 </button>
               </div>
             </div>
-            <div className="profile-chip" ref={profileRef}>
+            
+            <div className="profile-chip" ref={profileMenuHTMLReference}>
               <button
                 className="avatar"
-                onClick={() => setProfileOpen((open) => !open)}
+                onClick={() => setIsUserProfileMenuOpen(!isUserProfileMenuOpen)}
                 aria-label="Open profile"
               >
-                {(profile.name || "U")
+                {(userProfileDictionary.name || "U")
                   .split(" ")
                   .slice(0, 2)
-                  .map((part) => part[0])
+                  .map((word) => word[0])
                   .join("")
                   .toUpperCase()}
               </button>
-              {profileOpen && (
+              
+              {isUserProfileMenuOpen && (
                 <div className="profile-pop">
-                  <p className="profile-name">{profile.name || "Your Profile"}</p>
-                  <span className="profile-meta">{profile.email || "Gmail Connected"}</span>
-                  <button className="btn btn-ghost profile-logout" onClick={logout}>
+                  <p className="profile-name">{userProfileDictionary.name || "Your Profile"}</p>
+                  <span className="profile-meta">{userProfileDictionary.email || "Gmail Connected"}</span>
+                  <button className="btn btn-ghost profile-logout" onClick={handleUserLogoutButtonClick}>
                     Logout
                   </button>
                 </div>
@@ -725,337 +783,333 @@ export default function App() {
             </div>
           </div>
         </header>
-        {analyticsOpen && (
+
+        {isAnalyticsPopupOpen && (
           <div className="analytics-pop">
-            <p>Threat Level: {riskLevel(stats).label}</p>
-            <p>Total: {stats.total}</p>
-            <p>Safe: {stats.safe}</p>
-            <p>Suspicious: {stats.suspicious}</p>
-            <p>Phishing: {stats.phishing}</p>
-            <p>Blocked Domains: {blockedDomains.length}</p>
+            <p>Threat Level: {calculateOverallRiskLevel(emailStatisticsDictionary).label}</p>
+            <p>Total: {emailStatisticsDictionary.total}</p>
+            <p>Safe: {emailStatisticsDictionary.safe}</p>
+            <p>Suspicious: {emailStatisticsDictionary.suspicious}</p>
+            <p>Phishing: {emailStatisticsDictionary.phishing}</p>
+            <p>Blocked Domains: {blockedDomainsList.length}</p>
           </div>
         )}
 
-        {(error || (syncState.status === "failed" && syncState.error)) && (
-          <div className="error-box">{syncState.status === "failed" ? syncState.error : error}</div>
+        {generalErrorMessage && (
+          <div className="error-box">{generalErrorMessage}</div>
+        )}
+        
+        {backgroundSyncStatusDictionary.status === "failed" && backgroundSyncStatusDictionary.error && (
+          <div className="error-box">{backgroundSyncStatusDictionary.error}</div>
         )}
 
-        <motion.main layout transition={PANEL_TRANSITION} className={`workspace motion-layout ${detailsOpen ? "details-open" : ""}`}>
-          <AnimatePresence initial={false}>
-            {navOpen && (
-              <motion.aside
-                initial={{ x: -32, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -32, opacity: 0 }}
-                transition={PANEL_TRANSITION}
-                onAnimationStart={() => setIsMenuAnimating(true)}
-                onAnimationComplete={() => setIsMenuAnimating(false)}
-                className={`left-panel panel-surface card accelerated-panel ink-border panel-open ${!isMenuAnimating ? "butter-surface" : "panel-solid-fallback"}`}
-              >
-            <div className="panel-title-wrap">
-              <h3>Mailbox</h3>
-              <span className="total-pill">{stats.total}</span>
-            </div>
-            <div className="filter-stack">
-              {FILTERS.map((entry) => (
-                <button
-                  key={entry.key}
-                  className={
-                    filter === entry.key
-                      ? `filter-btn active active-${entry.key}`
-                      : "filter-btn"
-                  }
-                  onClick={() => setFilter(entry.key)}
-                >
-                  <span>{entry.label}</span>
-                  <strong>{stats[entry.statKey]}</strong>
-                </button>
-              ))}
-            </div>
-            <div className="quick-stats">
-              <div>
-                <small>Loaded</small>
-                <strong>{visibleEmails.length}</strong>
+        {/* --- MAIN WORKSPACE AREA --- */}
+        <main className={workspaceClassesString}>
+          
+          {/* --- LEFT SIDEBAR PANEL --- */}
+          {isNavigationMenuOpen && (
+            <aside className="left-panel panel-surface card accelerated-panel ink-border panel-open butter-surface">
+              <div className="panel-title-wrap">
+                <h3>Mailbox</h3>
+                <span className="total-pill">{emailStatisticsDictionary.total}</span>
               </div>
-              <div>
-                <small>Status</small>
-                <strong>{syncing ? "Running" : "Idle"}</strong>
+              
+              <div className="filter-stack">
+                {FILTER_OPTIONS.map((filterOptionItem) => (
+                  <button
+                    key={filterOptionItem.key}
+                    className={
+                      currentFilterKeyText === filterOptionItem.key
+                        ? `filter-btn active active-${filterOptionItem.key}`
+                        : "filter-btn"
+                    }
+                    onClick={() => setCurrentFilterKeyText(filterOptionItem.key)}
+                  >
+                    <span>{filterOptionItem.label}</span>
+                    <strong>{emailStatisticsDictionary[filterOptionItem.statKey]}</strong>
+                  </button>
+                ))}
               </div>
-            </div>
-            <div className="threat-overview">
-              <strong>Today's Risk</strong>
-              <p>High Risk: {todayOverview.highRisk}</p>
-              <p>New Domains: {todayOverview.newDomains}</p>
-              <p>Lookalike Attacks: {todayOverview.lookalike}</p>
-            </div>
-            <div className="engine-status">
-              <strong>Status</strong>
-              <p>AI Engine: Active</p>
-              <p>{timeAgo(lastScanAt)}</p>
-            </div>
-              </motion.aside>
-            )}
-          </AnimatePresence>
+              
+              <div className="quick-stats">
+                <div>
+                  <small>Loaded</small>
+                  <strong>{currentlyVisibleEmailsList.length}</strong>
+                </div>
+                <div>
+                  <small>Status</small>
+                  <strong>{isCurrentlySyncing ? "Running" : "Idle"}</strong>
+                </div>
+              </div>
+              
+              <div className="threat-overview">
+                <strong>Today's Risk</strong>
+                <p>High Risk: {highRiskEmailCountNumber}</p>
+                <p>New Domains: {newlyObservedDomainCountNumber}</p>
+                <p>Lookalike Attacks: {lookalikeAttackCountNumber}</p>
+              </div>
+              
+              <div className="engine-status">
+                <strong>Status</strong>
+                <p>AI Engine: Active</p>
+                <p>{calculateTimeAgoText(lastCompletedScanTimeString)}</p>
+              </div>
+            </aside>
+          )}
 
-          <motion.section layout transition={PANEL_TRANSITION} className="center-panel panel-surface card accelerated-panel ink-border panel-open">
+          {/* --- CENTER EMAIL LIST PANEL --- */}
+          <section className="center-panel panel-surface card accelerated-panel ink-border panel-open">
             <div className="panel-head">
-              <h3>Threat Feed</h3>
+              <h4>Feed</h4>
               <p>
-                {visibleEmails.length} shown / {pageInfo.total} filtered
+                {currentlyVisibleEmailsList.length} shown / {paginationInfoDictionary.total} filtered
               </p>
             </div>
+            
             <div className="mail-columns">
               <span>Source</span>
               <span>Context</span>
               <span className="status-heading">Actions</span>
             </div>
-            {syncing && (
+            
+            {isCurrentlySyncing && (
               <div className="sync-banner">
                 <span className="sync-system">
                   <span className="system-dot" aria-hidden="true" />
                   System Activity
                 </span>
-                <span>{syncState.saved} stored</span>
+                <span>{backgroundSyncStatusDictionary.saved} stored</span>
                 <div className="scan-steps" aria-label="Scan stages">
-                  <span className={scanStepIndex >= 0 ? "active" : ""}>Analyzing headers</span>
-                  <span className={scanStepIndex >= 1 ? "active" : ""}>Checking domain reputation</span>
-                  <span className={scanStepIndex >= 2 ? "active" : ""}>Evaluating AI signals</span>
+                  <span className={scanStepIndexNumber >= 0 ? "active" : ""}>{currentScanStageText === "Analyzing headers..." ? "Analyzing headers..." : "Done"}</span>
+                  <span className={scanStepIndexNumber >= 1 ? "active" : ""}>{currentScanStageText === "Evaluating AI signals..." ? "Done" : (scanStepIndexNumber === 1 ? currentScanStageText : "Pending")}</span>
+                  <span className={scanStepIndexNumber >= 2 ? "active" : ""}>Evaluating AI signals</span>
                 </div>
               </div>
             )}
-            <motion.div className="mail-list" onScroll={handleMailScroll} variants={LIST_VARIANTS} initial="hidden" animate="show">
-              {visibleEmails.map((mail) => (
-                <motion.div
-                  key={mail.id}
-                  className={[
-                    "mail-row threat-row",
-                    selected?.id === mail.id ? "selected" : "",
-                    `mail-row-${mail.label || "safe"}`,
-                  ]
-                    .join(" ")
-                    .trim()}
-                  variants={ITEM_VARIANTS}
-                  whileHover={{ x: 6 }}
-                  transition={{ duration: 0.16, ease: [0.19, 1, 0.22, 1] }}
-                >
-                  {(() => {
-                    const domain = extractDomain(mail.sender);
-                    const trust = domainTrust(domain, domainCounts);
-                    const signals = inferSignals(mail, blockedDomains, blockedSenders);
-                    return (
-                      <>
-                  <div className="row-left">
-                    <div className="row-verdict">
-                      <span className={badgeClass(mail.label)} data-tip={topRiskFactor(mail.reason)}>{mail.label}</span>
-                    </div>
-                    <div className="signal-icons">
-                      {signals.spoof && <span className="sig sig-primary" title="Domain spoof indicator">{"\u26A0"}</span>}
-                      {signals.blocked && <span className="sig sig-primary" title="Blocked sender domain">{"\u26D4"}</span>}
-                      {signals.link && <span className="sig sig-secondary" title="External link indicator">{"\uD83D\uDD17"}</span>}
-                      {signals.attachment && <span className="sig sig-secondary" title="Attachment indicator">{"\uD83D\uDCCE"}</span>}
-                      {trust.label === "NEW DOMAIN" && <span className="sig sig-secondary" title="New sender domain">{"\uD83C\uDF10"}</span>}
-                    </div>
-                    <p className="row-sender">
-                      {mail.sender || "Unknown sender"}
-                    </p>
-                    <p className="domain-context">
-                      {domain || "unknown domain"} <span className={`domain-badge ${trust.cls}`}>{trust.label}</span>
-                    </p>
-                  </div>
-                  <div className="mail-main">
-                    <p className="subject">{mail.subject || "(No Subject)"}</p>
-                    <p className="snippet">{highlightSnippet(mail.snippet)}</p>
-                    <p className="hover-intel">{firstIntel(mail.reason)}</p>
-                    <div className="row-risk">
-                      <div className="row-risk-head">
-                        <small className="ai-confidence-label">
-                          AI Confidence {syncing && <span className="ai-pulse-dot" aria-hidden="true" />}
-                        </small>
+            
+            <div className="mail-list" onScroll={handleMailListScrollEvent}>
+              {currentlyVisibleEmailsList.map((emailRecordItem) => {
+                const senderDomainString = extractDomainName(emailRecordItem.sender);
+                const domainTrustInformationObject = getDomainTrustStatus(senderDomainString, observedDomainCountsDictionary);
+                const inferredRiskSignalsObject = inferRiskSignals(emailRecordItem, blockedDomainsList, blockedSendersList);
+                
+                let rowClassesString = "mail-row threat-row ";
+                if (selectedEmailRecord && selectedEmailRecord.id === emailRecordItem.id) {
+                  rowClassesString = rowClassesString + "selected ";
+                }
+                rowClassesString = rowClassesString + `mail-row-${emailRecordItem.label || "safe"}`;
+                
+                return (
+                  <div key={emailRecordItem.id} className={rowClassesString}>
+                    
+                    <div className="row-left">
+                      <div className="row-verdict">
+                        <span className={getLabelBadgeCSSClass(emailRecordItem.label)} data-tip={getHighestRiskFactor(emailRecordItem.reason)}>
+                          {emailRecordItem.label}
+                        </span>
                       </div>
-                      <div className="row-risk-track">
-                        <div
-                          className={`${badgeClass(mail.label).replace("chip ", "")} confidence-fill-row`}
-                          style={{ "--confidence": `${Math.max(0, Math.min(100, mail.confidence || 0))}%` }}
-                        />
-                        <small className="risk-percent">{mail.confidence || 0}%</small>
+                      
+                      <div className="signal-icons">
+                        {inferredRiskSignalsObject.isSpoofing && <span className="sig sig-primary" title="Domain spoof indicator">{"\u26A0"}</span>}
+                        {inferredRiskSignalsObject.isBlocked && <span className="sig sig-primary" title="Blocked sender domain">{"\u26D4"}</span>}
+                        {inferredRiskSignalsObject.containsLink && <span className="sig sig-secondary" title="External link indicator">{"\uD83D\uDD17"}</span>}
+                        {inferredRiskSignalsObject.hasAttachment && <span className="sig sig-secondary" title="Attachment indicator">{"\uD83D\uDCCE"}</span>}
+                        {domainTrustInformationObject.label === "NEW DOMAIN" && <span className="sig sig-secondary" title="New sender domain">{"\uD83C\uDF10"}</span>}
+                      </div>
+                      
+                      <p className="row-sender">
+                        {emailRecordItem.sender || "Unknown sender"}
+                      </p>
+                      <p className="domain-context">
+                        {senderDomainString || "unknown domain"} <span className={`domain-badge ${domainTrustInformationObject.cssClass}`}>{domainTrustInformationObject.label}</span>
+                      </p>
+                    </div>
+                    
+                    <div className="mail-main">
+                      <p className="subject">{emailRecordItem.subject || "(No Subject)"}</p>
+                      <p className="snippet">{highlightImportantWords(emailRecordItem.snippet)}</p>
+                      <p className="hover-intel">{getFirstReasonLine(emailRecordItem.reason)}</p>
+                      <div className="row-risk">
+                        <div className="row-risk-head">
+                          <small className="ai-confidence-label">
+                            AI Confidence {isCurrentlySyncing && <span className="ai-pulse-dot" aria-hidden="true" />}
+                          </small>
+                        </div>
+                        <div className="row-risk-track">
+                          <div
+                            className={`${getLabelBadgeCSSClass(emailRecordItem.label).replace("chip ", "")} confidence-fill-row`}
+                            style={{ "--confidence": `${Math.max(0, Math.min(100, emailRecordItem.confidence || 0))}%` }}
+                          />
+                          <small className="risk-percent">{emailRecordItem.confidence || 0}%</small>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="mail-meta">
-                    <small>{asDate(mail.scanned_at)}</small>
-                    <div className="triage-inline">
-                      <button
-                        className="mini-action triage-btn triage-inspect"
-                        onClick={() => {
-                          setSelected(mail);
-                          setDetailsOpen(true);
-                        }}
-                      >
-                        Inspect
-                      </button>
-                      {isRiskyLabel(mail.label) && (
-                        <button className="mini-action triage-btn triage-quarantine" onClick={() => blockDomainFromSender(mail.sender)}>
-                          Quarantine
+                    
+                    <div className="mail-meta">
+                      <small>{formatDate(emailRecordItem.scanned_at)}</small>
+                      <div className="triage-inline">
+                        <button
+                          className="mini-action triage-btn triage-inspect"
+                          onClick={() => {
+                            setSelectedEmailRecord(emailRecordItem);
+                            setIsDetailsPanelOpen(true);
+                          }}
+                        >
+                          Inspect
                         </button>
-                      )}
-                      <button className="mini-action triage-btn triage-dismiss" onClick={() => quickRelabel(mail.id, "safe")}>
-                        Dismiss
-                      </button>
-                    </div>
-                    <div className="row-actions-wrap">
-                      <button
-                        className="row-menu-trigger"
-                        onClick={() => setActionMenuId((prev) => (prev === mail.id ? null : mail.id))}
-                        aria-label="More actions"
-                      >
-                        ...
-                      </button>
-                      <div className={actionMenuId === mail.id ? "row-actions open" : "row-actions"}>
-                        {isRiskyLabel(mail.label) && (
-                          <button className="mini-action action-block" onClick={() => blockDomainFromSender(mail.sender)}>
-                            Block Domain
+                        {isHighRiskLabel(emailRecordItem.label) && (
+                          <button className="mini-action triage-btn triage-quarantine" onClick={() => blockSenderDomainImmediatelyFunction(emailRecordItem.sender)}>
+                            Quarantine
                           </button>
                         )}
-                        <button className="mini-action" onClick={() => quickRelabel(mail.id, "safe")}>
-                          Mark Safe
-                        </button>
-                        <button className="mini-action" onClick={() => quickRelabel(mail.id, "suspicious")}>
-                          Mark Suspicious
+                        <button className="mini-action triage-btn triage-dismiss" onClick={() => quickRelabelEmailToProvideFeedbackFunction(emailRecordItem.id, "safe")}>
+                          Dismiss
                         </button>
                       </div>
-                    </div>
-                  </div>
-                      </>
-                    );
-                  })()}
-                </motion.div>
-              ))}
-              {!visibleEmails.length && <p className="empty">No emails available in this view.</p>}
-              {loading && emails.length > 0 && <p className="empty">Loading more...</p>}
-            </motion.div>
-          </motion.section>
-
-          <AnimatePresence initial={false}>
-            {detailsOpen && (
-              <motion.section
-                variants={ANALYSIS_PANEL_VARIANTS}
-                initial="hidden"
-                animate="visible"
-                exit="hidden"
-                onAnimationStart={() => setIsAnalysisAnimating(true)}
-                onAnimationComplete={() => setIsAnalysisAnimating(false)}
-                className={`right-panel panel-surface card open squeeze-panel accelerated-panel ink-border panel-open ink-border-active ${panelGlowClass(selected?.label)} ${!isAnalysisAnimating ? "butter-surface" : "panel-solid-fallback"}`}
-              >
-                <motion.div
-                  className="analysis-shell"
-                  animate={{ scale: selected?.label === "phishing" ? 1.01 : 1 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                >
-                  <motion.div className="panel-head" variants={ANALYSIS_ITEM_VARIANTS} initial="hidden" animate="show">
-                    <h3>Threat Analysis</h3>
-                    <button className="close-btn" onClick={() => setDetailsOpen(false)} aria-label="Close details">
-                      {"\u00D7"}
-                    </button>
-                  </motion.div>
-                  {!selected && <p className="empty">Select a message to inspect complete findings.</p>}
-                  {selected && (
-                    <motion.div
-                      key={selected.id}
-                      className="analysis"
-                      variants={ANALYSIS_CONTAINER_VARIANTS}
-                      initial="hidden"
-                      animate="show"
-                    >
-                      <motion.h4 variants={ANALYSIS_ITEM_VARIANTS}>{selected.subject}</motion.h4>
-                      <motion.div className="investigation-section" variants={ANALYSIS_ITEM_VARIANTS}>
-                        <strong>Threat Summary</strong>
-                        <p className="meta-line">
-                          <strong>From:</strong> {selected.sender}
-                        </p>
-                        <p className="meta-line">
-                          <strong>Verdict:</strong> <span className={badgeClass(selected.label)}>{selected.label}</span>
-                        </p>
-                        <p className="meta-line">
-                          <strong>Confidence:</strong> {selected.confidence}%
-                        </p>
-                        <div className="confidence-bar">
-                          <motion.div
-                            className={`confidence-fill confidence-${selected.label || "safe"}`}
-                            initial={{ width: 0 }}
-                            animate={{ width: `${analysisConfidence}%` }}
-                            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                          />
-                        </div>
-                      </motion.div>
-                      <motion.div className="investigation-section" variants={ANALYSIS_ITEM_VARIANTS}>
-                        <strong>Risk Signals</strong>
-                        <div className="signal-stack">
-                          {Object.values(groupedFindings(selected.reason))
-                            .flat()
-                            .slice(0, 4)
-                            .map((line, idx) => (
-                              <p key={`risk-${idx}`}>{line}</p>
-                            ))}
-                        </div>
-                      </motion.div>
-                      <motion.div className="threat-actions" variants={ANALYSIS_ITEM_VARIANTS}>
-                        {isRiskyLabel(selected.label) && (
-                          <>
-                            <span className="containment-label">Contain Threat</span>
-                            <button className="mini-action action-block" onClick={() => blockDomainFromSender(selected.sender)}>
+                      
+                      <div className="row-actions-wrap">
+                        <button
+                          className="row-menu-trigger"
+                          onClick={() => setOpenActionMenuEmailIdNumber(openActionMenuEmailIdNumber === emailRecordItem.id ? null : emailRecordItem.id)}
+                          aria-label="More actions"
+                        >
+                          ...
+                        </button>
+                        <div className={openActionMenuEmailIdNumber === emailRecordItem.id ? "row-actions open" : "row-actions"}>
+                          {isHighRiskLabel(emailRecordItem.label) && (
+                            <button className="mini-action action-block" onClick={() => blockSenderDomainImmediatelyFunction(emailRecordItem.sender)}>
                               Block Domain
                             </button>
-                            <button className="mini-action action-block" onClick={() => blockSenderAddress(selected.sender)}>
-                              Block Sender
-                            </button>
-                          </>
-                        )}
-                        <button className="mini-action action-safe" onClick={() => quickRelabel(selected.id, "safe")}>
-                          Mark Safe
-                        </button>
-                        <button className="mini-action action-suspicious" onClick={() => quickRelabel(selected.id, "suspicious")}>
-                          Mark Suspicious
-                        </button>
-                        <button className="mini-action danger action-danger" onClick={() => quickRelabel(selected.id, "phishing")}>
-                          Report Phishing
-                        </button>
-                        <button className="mini-action action-ignore" onClick={() => setDetailsOpen(false)}>
-                          Ignore
-                        </button>
-                      </motion.div>
-                      <motion.div className="investigation-section" variants={ANALYSIS_ITEM_VARIANTS}>
-                        <strong>AI Reasoning</strong>
-                        <div className="findings-card grouped">
-                          {Object.entries(groupedFindings(selected.reason)).map(([group, lines]) =>
-                            lines.length ? (
-                              <div key={group}>
-                                <strong className="finding-group">{group}</strong>
-                                {lines.map((line, idx) => (
-                                  <p key={`${selected.id}-${group}-${idx}`}>{line}</p>
-                                ))}
-                              </div>
-                            ) : null
                           )}
+                          <button className="mini-action" onClick={() => quickRelabelEmailToProvideFeedbackFunction(emailRecordItem.id, "safe")}>
+                            Mark Safe
+                          </button>
+                          <button className="mini-action" onClick={() => quickRelabelEmailToProvideFeedbackFunction(emailRecordItem.id, "suspicious")}>
+                            Mark Suspicious
+                          </button>
                         </div>
-                      </motion.div>
-                      <motion.div className="investigation-section" variants={ANALYSIS_ITEM_VARIANTS}>
-                        <strong>Technical Indicators</strong>
-                        <div className="signal-stack technical-indicators">
-                          <p>Sender Domain: {extractDomain(selected.sender) || "Unknown"}</p>
-                          <p>SPF Result: Unknown (MVP)</p>
-                          <p>Reply-To Mismatch: Not evaluated (MVP)</p>
-                        </div>
-                      </motion.div>
-                      <motion.article variants={ANALYSIS_ITEM_VARIANTS}>{selected.body_text || selected.snippet}</motion.article>
-                    </motion.div>
-                  )}
-                </motion.div>
-              </motion.section>
-            )}
-          </AnimatePresence>
-        </motion.main>
+                      </div>
+                    </div>
+                    
+                  </div>
+                );
+              })}
+              
+              {currentlyVisibleEmailsList.length === 0 && <p className="empty">No emails available in this view.</p>}
+              {isLoadingEmails && allEmailsList.length > 0 && <p className="empty">Loading more...</p>}
+            </div>
+          </section>
+
+          {/* --- RIGHT DETAILS PANEL --- */}
+          {isDetailsPanelOpen && (
+            <section className={`right-panel panel-surface card open squeeze-panel accelerated-panel ink-border panel-open ink-border-active butter-surface ${getPanelGlowCSSClass(selectedEmailRecord?.label)}`}>
+              <div className="analysis-shell">
+                <div className="panel-head">
+                  <h3>Threat Analysis</h3>
+                  <button className="close-btn" onClick={() => setIsDetailsPanelOpen(false)} aria-label="Close details">
+                    {"\u00D7"}
+                  </button>
+                </div>
+                
+                {!selectedEmailRecord && <p className="empty">Select a message to inspect complete findings.</p>}
+                
+                {selectedEmailRecord && (
+                  <div className="analysis">
+                    <h4>{selectedEmailRecord.subject}</h4>
+                    
+                    <div className="investigation-section">
+                      <strong>Threat Summary</strong>
+                      <p className="meta-line">
+                        <strong>From:</strong> {selectedEmailRecord.sender}
+                      </p>
+                      <p className="meta-line">
+                        <strong>Verdict:</strong> <span className={getLabelBadgeCSSClass(selectedEmailRecord.label)}>{selectedEmailRecord.label}</span>
+                      </p>
+                      <p className="meta-line">
+                        <strong>Confidence:</strong> {selectedEmailRecord.confidence}%
+                      </p>
+                      <div className="confidence-bar">
+                        <div
+                          className={`confidence-fill confidence-${selectedEmailRecord.label || "safe"}`}
+                          style={{ width: `${selectedEmailRecord.confidence || 0}%` }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="investigation-section">
+                      <strong>Risk Signals</strong>
+                      <div className="signal-stack">
+                        {Object.values(groupFindingsByCategory(selectedEmailRecord.reason))
+                          .flat()
+                          .slice(0, 4)
+                          .map((lineText, arrayIndexNumber) => (
+                            <p key={`risk-${arrayIndexNumber}`}>{lineText}</p>
+                          ))}
+                      </div>
+                    </div>
+                    
+                    <div className="threat-actions">
+                      {isHighRiskLabel(selectedEmailRecord.label) && (
+                        <>
+                          <span className="containment-label">Contain Threat</span>
+                          <button className="mini-action action-block" onClick={() => blockSenderDomainImmediatelyFunction(selectedEmailRecord.sender)}>
+                            Block Domain
+                          </button>
+                          <button className="mini-action action-block" onClick={() => blockSenderAddressImmediatelyFunction(selectedEmailRecord.sender)}>
+                            Block Sender
+                          </button>
+                        </>
+                      )}
+                      <button className="mini-action action-safe" onClick={() => quickRelabelEmailToProvideFeedbackFunction(selectedEmailRecord.id, "safe")}>
+                        Mark Safe
+                      </button>
+                      <button className="mini-action action-suspicious" onClick={() => quickRelabelEmailToProvideFeedbackFunction(selectedEmailRecord.id, "suspicious")}>
+                        Mark Suspicious
+                      </button>
+                      <button className="mini-action danger action-danger" onClick={() => quickRelabelEmailToProvideFeedbackFunction(selectedEmailRecord.id, "phishing")}>
+                        Report Phishing
+                      </button>
+                      <button className="mini-action action-ignore" onClick={() => setIsDetailsPanelOpen(false)}>
+                        Ignore
+                      </button>
+                    </div>
+                    
+                    <div className="investigation-section">
+                      <strong>AI Reasoning</strong>
+                      <div className="findings-card grouped">
+                        {Object.entries(groupFindingsByCategory(selectedEmailRecord.reason)).map(([categoryNameString, findingLinesArray]) =>
+                          findingLinesArray.length > 0 ? (
+                            <div key={categoryNameString}>
+                              <strong className="finding-group">{categoryNameString}</strong>
+                              {findingLinesArray.map((lineTextString, indexNumber) => (
+                                <p key={`${selectedEmailRecord.id}-${categoryNameString}-${indexNumber}`}>{lineTextString}</p>
+                              ))}
+                            </div>
+                          ) : null
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="investigation-section">
+                      <strong>Technical Indicators</strong>
+                      <div className="signal-stack technical-indicators">
+                        <p>Sender Domain: {extractDomainName(selectedEmailRecord.sender) || "Unknown"}</p>
+                        <p>SPF Result: Unknown (MVP)</p>
+                        <p>Reply-To Mismatch: Not evaluated (MVP)</p>
+                      </div>
+                    </div>
+                    
+                    <article>
+                      {selectedEmailRecord.body_text || selectedEmailRecord.snippet}
+                    </article>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+          
+        </main>
       </div>
     </div>
   );
 }
-

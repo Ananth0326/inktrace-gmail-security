@@ -50,7 +50,6 @@ def _extract_domain(sender: str) -> str:
         return ""
     return addr.split("@", 1)[1].lower().strip()
 
-
 def _extract_urls(text: str) -> list[str]:
     return re.findall(r"https?://[^\s)>\"']+", text or "", flags=re.IGNORECASE)
 

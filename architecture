@@ -1,0 +1,19 @@
+digraph {
+	A [label="Gmail API"]
+	B [label="FastAPI Backend"]
+	C [label="Rule Engine
+(Regex Checks)"]
+	D [label="Embedding Model
+(FastEmbed)"]
+	E [label="Vector DB
+(Similarity Search)"]
+	F [label="LLM (Llama-3 via Groq)"]
+	G [label="Classification Output
+(Safe / Suspicious / Phishing)"]
+	A -> B
+	B -> C
+	C -> D
+	D -> E
+	E -> F
+	F -> G
+}

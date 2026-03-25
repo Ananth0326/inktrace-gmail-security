@@ -1054,10 +1054,11 @@ button:active {
   margin-top: 32px;
 }
 
-.center-panel .panel-head h3 {
-  font-size: 34px;
+.center-panel .panel-head h4 {
+  font-size: 20px;
   font-weight: 800;
   letter-spacing: -0.01em;
+  margin: 0;
 }
 
 .panel-head p {
@@ -1081,7 +1082,7 @@ button:active {
   gap: var(--space-2);
   padding: 0 var(--space-3) var(--space-2);
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: 11px;
   border-bottom: 1px solid var(--divider);
 }
 
@@ -1329,6 +1330,7 @@ button:active {
 .row-sender {
   font-weight: 500;
   color: #1c1f2a;
+  font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1337,14 +1339,14 @@ button:active {
 
 .domain-context {
   color: #8b90a7;
-  font-size: 13px;
+  font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .subject {
-  font-size: 14px;
+  font-size: 13px;
   margin-bottom: 6px;
   font-weight: 400;
   color: #2b2f3a;
@@ -1352,7 +1354,7 @@ button:active {
 
 .snippet {
   color: #8b90a7;
-  font-size: 13px;
+  font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1376,7 +1378,7 @@ button:active {
 
 .row-risk small {
   color: #8b90a7;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .sender {
@@ -1388,7 +1390,7 @@ button:active {
 .domain,
 .ai-confidence-label {
   color: #8b90a7;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .row-risk-head {
@@ -1471,11 +1473,13 @@ button:active {
   justify-content: center;
   gap: 12px;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .triage-inline {
   display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 6px;
   opacity: 0;
   visibility: hidden;
