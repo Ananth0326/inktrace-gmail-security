@@ -64,12 +64,12 @@ export default function App() {
       
       {/* TOP BAR */}
       <header className="topbar">
-        <div className="brand">INKTRACE</div>
+        <div className="brand">InkTrace</div>
         <div className="search-wrap">
           <input 
             type="text" 
             className="search-input" 
-            placeholder="Search telemetry..." 
+            placeholder="Search emails..." 
           />
         </div>
         <div className="avatar-wrap">
