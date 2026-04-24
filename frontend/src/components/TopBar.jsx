@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import styles from './TopBar.module.css';
 import Avatar from './Avatar';
 
 export default function TopBar({ 
@@ -10,12 +11,12 @@ export default function TopBar({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <header className="topbar">
-      <div className="brand">InkTrace</div>
-      <div className="search-wrap">
+    <header className={styles.topbar}>
+      <div className={styles.brand}>InkTrace</div>
+      <div className={styles.searchWrap}>
         <input 
           type="text" 
-          className="search-input" 
+          className={styles.searchInput} 
           placeholder="Search by sender, subject, or snippet..." 
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}

@@ -1,4 +1,5 @@
 import React from 'react';
+import styles from './LeftPanel.module.css';
 
 export default function LeftPanel({
   filters,
@@ -9,14 +10,14 @@ export default function LeftPanel({
   isCurrentlySyncing
 }) {
   return (
-    <aside className="panel-left">
-      <div className="left-panel-heading">Inbox</div>
+    <aside className={styles.panelLeft}>
+      <div className={styles.leftPanelHeading}>Inbox</div>
       
-      <div className="filter-list">
+      <div className={styles.filterList}>
         {filters.map(filter => (
           <div 
             key={filter.name}
-            className={`sidebar-filter-item ${activeFilter === filter.name ? 'active' : ''}`}
+            className={`${styles.sidebarFilterItem} ${activeFilter === filter.name ? styles.active : ''}`}
             onClick={() => onFilterChange(filter.name)}
           >
             {filter.name} ({filter.count})

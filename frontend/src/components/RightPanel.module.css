@@ -1,0 +1,85 @@
+.panelRight {
+  width: 360px;
+  flex-shrink: 0;
+  border-left: var(--ink-border);
+  padding: 24px;
+  background-color: var(--bg-color);
+  overflow-y: auto;
+}
+
+.emptyAnalysis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-grey);
+  font-size: 14px;
+}
+
+.analysisSubject {
+  font-family: 'Sora', 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.3;
+  font-size: 16px;
+  font-weight: 700;
+  color: #000;
+  margin-bottom: 8px;
+}
+
+.analysisVerdict {
+  font-size: 14px;
+  color: #1a1a1a;
+  margin-bottom: 24px;
+  text-transform: capitalize;
+}
+
+.analysisHeading {
+  font-family: 'Sora', 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.3;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-grey);
+  margin-bottom: 8px;
+  margin-top: 24px;
+}
+
+.riskSignalsList {
+  list-style-type: disc;
+  padding-left: 20px;
+  font-size: 13px;
+  color: var(--text-main);
+  margin-bottom: 24px;
+}
+
+.riskSignalsList li {
+  margin-bottom: 4px;
+}
+
+.aiReasoningText {
+  font-size: 13px;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.actionRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 32px;
+}
+
+.actionButtonSquare {
+  border: 1.5px solid #1a1a1a;
+  background-color: transparent;
+  color: #1a1a1a;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-weight: 600;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.actionButtonSquare:hover {
+  background-color: #1a1a1a;
+  color: #fff;
+}

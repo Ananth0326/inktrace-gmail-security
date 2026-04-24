@@ -1,0 +1,181 @@
+.panelCenterOuter {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-color);
+  min-width: 0;
+}
+
+.centerHeader {
+  padding: 24px 24px 16px 24px;
+}
+
+.centerTitle {
+  font-family: 'Sora', 'Inter', system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 24px;
+}
+
+.columnHeaders {
+  display: flex;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #6e6e73;
+  padding: 0 16px;
+  margin-bottom: 8px;
+}
+
+.colSource { width: 40%; }
+.colContext { flex: 1; }
+.colStatus { width: 80px; text-align: right; }
+
+.syncBanner {
+  background-color: #1a1a1a;
+  color: #fbfbf9;
+  padding: 8px 24px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-bottom: 1.5px solid #1a1a1a;
+}
+
+.feedWrapper {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.emptyText {
+  padding: 24px;
+  text-align: center;
+  font-size: 14px;
+  color: #6e6e73;
+}
+
+.feedList {
+  display: flex;
+  flex-direction: column;
+}
+
+.mailItem {
+  height: 72px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e5e5;
+  cursor: pointer;
+  background-color: var(--bg-color);
+  border-left: 3px solid transparent; 
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.safe { border-left-color: #1a73e8; } 
+.suspicious { border-left-color: #f29900; } 
+.phishing { border-left-color: #d93025; } 
+
+.mailItem:hover, .selected {
+  background-color: #f5f5f5;
+}
+
+.mailTopRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0px;
+}
+
+.mailSender {
+  font-weight: 700;
+  font-size: 14px;
+  color: #000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mailConfidence {
+  font-size: 11px;
+  color: var(--text-grey);
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.mailSubject {
+  font-weight: 400;
+  font-size: 14px;
+  color: #000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 0px;
+}
+
+.mailSnippet {
+  font-size: 13px;
+  color: var(--text-grey);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.loadingText {
+  padding: 24px;
+  text-align: center;
+  font-size: 14px;
+  color: #6e6e73;
+}
+
+.menuWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.menuTrigger {
+  border: 1.5px solid #1a1a1a;
+  background-color: transparent;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-weight: 700;
+  line-height: 1;
+  font-size: 12px;
+  color: #1a1a1a;
+}
+.menuTrigger:hover {
+  background-color: #1a1a1a;
+  color: #fff;
+}
+
+.actionMenu {
+  position: absolute;
+  top: 28px;
+  right: 0;
+  width: 140px;
+  background-color: #fbfbf9;
+  border: 1.5px solid #1a1a1a;
+  z-index: 10;
+}
+
+.actionMenuItem {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  border-bottom: 1px solid #e5e5e5;
+  color: #1a1a1a;
+}
+.actionMenuItem:last-child {
+  border-bottom: none;
+}
+.actionMenuItem:hover {
+  background-color: #1a1a1a;
+  color: #fff;
+}

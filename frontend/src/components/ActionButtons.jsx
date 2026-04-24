@@ -1,28 +1,30 @@
 import React from 'react';
+import styles from './RightPanel.module.css';
 
 export default function ActionButtons({
-  email,
-  onRelabel,
+  emailId,
+  currentLabel,
+  onMark,
   onBlockDomain,
   onBlockSender
 }) {
   return (
-    <div className="action-row">
+    <div className={styles.actionRow}>
       <button 
-        className="action-button-square"
-        onClick={() => onRelabel(email.id, 'safe')}
+        className={styles.actionButtonSquare}
+        onClick={() => onMark(emailId, 'safe')}
       >
         Mark Safe
       </button>
       <button 
-        className="action-button-square"
-        onClick={() => onRelabel(email.id, 'suspicious')}
+        className={styles.actionButtonSquare}
+        onClick={() => onMark(emailId, 'suspicious')}
       >
         Mark Suspicious
       </button>
       <button 
-        className="action-button-square"
-        onClick={() => onRelabel(email.id, 'phishing')}
+        className={styles.actionButtonSquare}
+        onClick={() => onMark(emailId, 'phishing')}
       >
         Report Phishing
       </button>

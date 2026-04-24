@@ -1,0 +1,40 @@
+.panelLeft {
+  width: 240px;
+  flex-shrink: 0;
+  border-right: var(--ink-border);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background-color: var(--bg-color);
+  overflow-y: auto;
+}
+
+.leftPanelHeading {
+  font-family: 'Sora', 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.3;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.filterList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebarFilterItem {
+  cursor: pointer;
+  font-weight: 400;
+  color: var(--text-main);
+  font-size: 14px;
+}
+
+.sidebarFilterItem:hover {
+  color: var(--text-grey);
+}
+
+.active {
+  font-weight: 700;
+}

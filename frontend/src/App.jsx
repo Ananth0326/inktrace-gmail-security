@@ -1,7 +1,8 @@
 import React from 'react';
+import styles from './App.module.css';
 import TopBar from './components/TopBar';
 import LeftPanel from './components/LeftPanel';
-import EmailRow from './components/EmailRow';
+import CenterPanel from './components/CenterPanel';
 import RightPanel from './components/RightPanel';
 import { useAuth } from './hooks/useAuth';
 import { useEmails } from './hooks/useEmails';
@@ -16,16 +17,13 @@ export default function App() {
 
   const selectedEmailData = emails.find(m => m.id === selectedMail) || null;
 
-  // If not authenticated, render strict minimalist login flow overlay
   if (!sessionToken) {
     return (
-      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fbfbf9' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1a1a1a', marginBottom: '24px', fontFamily: '"Sora", "Inter", sans-serif' }}>InkTrace</h1>
+      <div className={styles.loginOverlay}>
+        <h1 className={styles.loginTitle}>InkTrace</h1>
         <button 
           onClick={login}
-          style={{ border: '1.5px solid #1a1a1a', backgroundColor: 'transparent', padding: '12px 24px', cursor: 'pointer', fontFamily: '"Inter", sans-serif', fontSize: '14px', fontWeight: 600, color: '#1a1a1a', borderRadius: '0' }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#1a1a1a'; e.currentTarget.style.color = '#fff'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#1a1a1a'; }}
+          className={styles.loginButton}
         >
           Connect Agent
         </button>
@@ -34,21 +32,15 @@ export default function App() {
   }
 
   return (
-    <div className="dashboard">
-      
-      {/* TOP BAR */}
+    <div className={styles.dashboard}>
       <TopBar 
         user={null}
         searchQuery={searchTerm}
         onSearchChange={setSearchTerm}
-        onLogout={() => {}}
-        onAvatarClick={() => {}}
+        onLogout={logout}
       />
 
-      {/* WORKSPACE */}
-      <div className="workspace">
-        
-        {/* LEFT PANEL */}
+      <div className={styles.workspace}>
         <LeftPanel 
           filters={filters}
           activeFilter={activeFilter}
@@ -58,29 +50,20 @@ export default function App() {
           isCurrentlySyncing={false}
         />
 
-        {/* CENTER PANEL */}
-        <main className="panel-center">
-          <div className="feed-list">
-            {isLoading ? (
-              <div style={{ padding: '24px', textAlign: 'center', fontSize: '14px', color: '#6e6e73' }}>
-                Loading emails...
-              </div>
-            ) : (
-              displayedEmails.map(mail => (
-                <EmailRow 
-                  key={mail.id}
-                  email={mail}
-                  isSelected={selectedMail === mail.id}
-                  onClick={() => setSelectedMail(mail.id)}
-                  onMenuToggle={() => {}}
-                  isMenuOpen={false}
-                />
-              ))
-            )}
-          </div>
-        </main>
+        <CenterPanel 
+          emails={displayedEmails}
+          isLoading={isLoading}
+          selectedEmailId={selectedMail}
+          onSelectEmail={setSelectedMail}
+          onRelabel={handleMarkLabel}
+          onBlockDomain={() => {}}
+          onBlockSender={() => {}}
+          onLoadMore={() => {}}
+          hasMore={false}
+          syncStatus={{progress: ''}}
+          isSyncing={false}
+        />
 
-        {/* RIGHT PANEL */}
         <RightPanel 
           selectedEmail={selectedEmailData}
           isOpen={selectedEmailData !== null}
@@ -89,7 +72,6 @@ export default function App() {
           onBlockDomain={() => {}}
           onBlockSender={() => {}}
         />
-
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import React from 'react';
 import ActionButtons from './ActionButtons';
 import { parseReason } from '../utils/helpers';
+import styles from './RightPanel.module.css';
 
 export default function RightPanel({
   selectedEmail,
@@ -15,20 +16,20 @@ export default function RightPanel({
   const aiReasoning = reasonLines.slice(0, 8); 
 
   return (
-    <aside className="panel-right">
+    <aside className={styles.panelRight}>
       {!selectedEmail ? (
-        <div className="empty-analysis">
+        <div className={styles.emptyAnalysis}>
           Select an email to view analysis
         </div>
       ) : (
         <>
-          <div className="analysis-subject">{selectedEmail.subject}</div>
-          <div className="analysis-verdict" style={{ textTransform: 'capitalize' }}>
+          <div className={styles.analysisSubject}>{selectedEmail.subject}</div>
+          <div className={styles.analysisVerdict}>
             {selectedEmail.label} — {selectedEmail.confidence}% Confidence
           </div>
 
-          <div className="analysis-heading">Risk Signals</div>
-          <ul className="risk-signals-list">
+          <div className={styles.analysisHeading}>Risk Signals</div>
+          <ul className={styles.riskSignalsList}>
             {riskSignals.length > 0 ? (
               riskSignals.map((signal, idx) => (
                 <li key={idx}>{signal}</li>
@@ -38,20 +39,21 @@ export default function RightPanel({
             )}
           </ul>
 
-          <div className="analysis-heading">AI Reasoning</div>
+          <div className={styles.analysisHeading}>AI Reasoning</div>
           <div>
             {aiReasoning.length > 0 ? (
               aiReasoning.map((finding, idx) => (
-                <div key={idx} className="ai-reasoning-text">{finding}</div>
+                <div key={idx} className={styles.aiReasoningText}>{finding}</div>
               ))
             ) : (
-              <div className="ai-reasoning-text">Behavioral baseline verified.</div>
+              <div className={styles.aiReasoningText}>Behavioral baseline verified.</div>
             )}
           </div>
 
           <ActionButtons 
-            email={selectedEmail}
-            onRelabel={onRelabel}
+            emailId={selectedEmail.id}
+            currentLabel={selectedEmail.label}
+            onMark={onRelabel}
             onBlockDomain={onBlockDomain}
             onBlockSender={onBlockSender}
           />
