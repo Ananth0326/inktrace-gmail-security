@@ -110,7 +110,7 @@ body {
   padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   background-color: var(--bg-color);
   overflow-y: auto;
 }
@@ -136,34 +136,36 @@ body {
 
 /* --- UI Component Styling --- */
 
-.section-title {
-  font-size: 0.75rem;
-  text-transform: uppercase;
+.left-panel-heading {
+  font-size: 16px;
   font-weight: 700;
-  color: var(--text-grey);
-  letter-spacing: 1px;
-  margin-bottom: 8px;
+  color: var(--text-main);
 }
 
-.filter-item {
-  padding: 8px 12px;
+.filter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-filter-item {
   cursor: pointer;
-  border: 1.5px solid transparent; 
-  font-weight: 600;
+  font-weight: 400;
+  color: var(--text-main);
+  font-size: 14px;
+}
+
+.sidebar-filter-item:hover {
   color: var(--text-grey);
-  font-size: 0.9rem;
-  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.filter-item:hover {
-  background-color: var(--hover-bg);
-  color: var(--text-main);
-}
-
-.filter-item.active {
-  border: var(--ink-border);
-  color: var(--text-main);
+.sidebar-filter-item.active {
   font-weight: 700;
+}
+
+.last-scan-text {
+  font-size: 11px;
+  color: var(--text-grey);
 }
 
 /* Feed List Styles */
@@ -173,86 +175,140 @@ body {
 }
 
 .mail-item {
-  padding: 20px 24px;
-  border-bottom: var(--ink-border);
+  height: 72px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e5e5;
   cursor: pointer;
-  transition: background-color 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  background-color: var(--bg-color);
+  border-left: 3px solid transparent; 
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
+.mail-item.safe { border-left-color: #1a73e8; } /* blue */
+.mail-item.suspicious { border-left-color: #f29900; } /* orange */
+.mail-item.phishing { border-left-color: #d93025; } /* red */
+
 .mail-item:hover {
-  background-color: var(--hover-bg);
+  background-color: #f5f5f5;
 }
 
 .mail-item.selected {
-  background-color: #efefec;
+  background-color: #f5f5f5;
+}
+
+.mail-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0px;
 }
 
 .mail-sender {
   font-weight: 700;
-  margin-bottom: 4px;
-  font-size: 0.95rem;
+  font-size: 14px;
+  color: #000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mail-confidence {
+  font-size: 11px;
+  color: var(--text-grey);
+  flex-shrink: 0;
+  margin-left: 8px;
 }
 
 .mail-subject {
-  font-weight: 600;
-  font-size: 0.85rem;
-  margin-bottom: 8px;
+  font-weight: 400;
+  font-size: 14px;
+  color: #000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 0px;
 }
 
 .mail-snippet {
-  font-size: 0.85rem;
+  font-size: 13px;
   color: var(--text-grey);
-  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Analysis Right Panel Styles */
-.analysis-title {
-  font-weight: 800;
-  font-size: 1.25rem;
-  margin-bottom: 24px;
-  letter-spacing: -0.5px;
-}
-
-.info-block {
-  margin-bottom: 24px;
-  padding-bottom: 24px;
-  border-bottom: var(--ink-border);
-}
-
-.info-label {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  font-weight: 700;
+.empty-analysis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
   color: var(--text-grey);
-  letter-spacing: 1px;
+  font-size: 14px;
+}
+
+.analysis-subject {
+  font-size: 16px;
+  font-weight: 700;
+  color: #000;
   margin-bottom: 8px;
 }
 
-.info-value {
-  font-weight: 600;
-  font-size: 0.95rem;
+.analysis-verdict {
+  font-size: 14px;
+  color: #1a1a1a;
+  margin-bottom: 24px;
 }
 
-.action-btn {
-  width: 100%;
-  padding: 12px;
-  background-color: var(--bg-color);
-  border: var(--ink-border);
-  color: var(--text-main);
-  font-family: inherit;
-  font-weight: 800;
+.analysis-heading {
+  font-size: 12px;
+  font-weight: 700;
   text-transform: uppercase;
+  color: var(--text-grey);
+  margin-bottom: 8px;
+  margin-top: 24px;
+}
+
+.risk-signals-list {
+  list-style-type: disc;
+  padding-left: 20px;
+  font-size: 13px;
+  color: var(--text-main);
+  margin-bottom: 24px;
+}
+
+.risk-signals-list li {
+  margin-bottom: 4px;
+}
+
+.ai-reasoning-text {
+  font-size: 13px;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.action-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 32px;
+}
+
+.action-button-square {
+  border: 1.5px solid #1a1a1a;
+  background-color: transparent;
+  color: #1a1a1a;
+  padding: 6px 12px;
+  border-radius: 0;
   cursor: pointer;
-  transition: transform 0.1s, background-color 0.2s;
-  letter-spacing: 1px;
-  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  font-size: 13px;
 }
 
-.action-btn:hover {
-  background-color: var(--text-main);
-  color: var(--bg-color);
-}
-
-.action-btn:active {
-  transform: translateY(2px);
+.action-button-square:hover {
+  background-color: #1a1a1a;
+  color: #fff;
 }
