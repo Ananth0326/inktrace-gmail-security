@@ -168,10 +168,7 @@ h1, h2, h3, h4, h5, h6, .brand, .left-panel-heading, .analysis-subject {
   font-weight: 700;
 }
 
-.last-scan-text {
-  font-size: 11px;
-  color: var(--text-grey);
-}
+
 
 /* Feed List Styles */
 .feed-list {

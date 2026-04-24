@@ -160,9 +160,6 @@ export default function App() {
             ))}
           </div>
 
-          <div className="last-scan-text">
-            Last scan: {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-          </div>
         </aside>
 
         {/* CENTER PANEL */}
