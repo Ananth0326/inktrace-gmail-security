@@ -6,6 +6,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [activeFilter, setActiveFilter] = useState('All Mail');
   const [selectedMail, setSelectedMail] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     // Check URL for session token
@@ -90,8 +91,22 @@ export default function App() {
   ];
 
   const displayedEmails = emails.filter(e => {
-    if (activeFilter === 'All Mail') return true;
-    return e.label.toLowerCase() === activeFilter.toLowerCase();
+    if (activeFilter !== 'All Mail' && e.label.toLowerCase() !== activeFilter.toLowerCase()) {
+      return false;
+    }
+
+    if (searchTerm.trim() !== '') {
+      const term = searchTerm.toLowerCase();
+      const matchSender = e.sender && e.sender.toLowerCase().includes(term);
+      const matchSubject = e.subject && e.subject.toLowerCase().includes(term);
+      const matchSnippet = e.snippet && e.snippet.toLowerCase().includes(term);
+      
+      if (!matchSender && !matchSubject && !matchSnippet) {
+        return false;
+      }
+    }
+
+    return true;
   });
 
   const selectedEmailData = emails.find(m => m.id === selectedMail);
@@ -133,7 +148,9 @@ export default function App() {
           <input 
             type="text" 
             className="search-input" 
-            placeholder="Search emails..." 
+            placeholder="Search by sender, subject, or snippet..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <div className="avatar-wrap">
