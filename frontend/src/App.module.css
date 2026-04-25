@@ -1,52 +1,50 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Sora:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :global(:root) {
-  --bg-color: #fbfbf9;
-  --text-main: #1a1a1a;
-  --text-grey: #6e6e73;
-  --ink-border: 1.5px solid #1a1a1a;
+  --bg: #000000;
+  --surface: #1c1c1e;
+  --surface-elevated: #2c2c2e;
+  --border: rgba(255, 255, 255, 0.08);
+  --text-primary: #ffffff;
+  --text-secondary: #8e8e93;
+  --text-tertiary: #48484a;
+  --safe: #30d158;
+  --suspicious: #ffd60a;
+  --phishing: #ff453a;
+  --accent: #0a84ff;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
 }
 
 :global(*) {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  border-radius: 0 !important;
 }
 
 :global(body) {
-  background-color: var(--bg-color);
-  color: var(--text-main);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
   font-size: 14px;
-  line-height: 1.4;
-  font-weight: 400;
+  line-height: 1.5;
   overflow: hidden;
-}
-
-:global(h1), :global(h2), :global(h3), :global(h4), :global(h5), :global(h6) {
-  font-family: 'Sora', 'Inter', system-ui, -apple-system, sans-serif;
-  line-height: 1.3;
+  -webkit-font-smoothing: antialiased;
 }
 
 .dashboard {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  background: var(--bg);
 }
 
 .workspace {
   display: flex;
   flex: 1;
   overflow: hidden;
-}
-
-.panelCenter {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--bg-color);
-  min-width: 0;
+  position: relative;
 }
 
 .loginOverlay {
@@ -55,30 +53,38 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-color: #fbfbf9;
+  background: var(--bg);
+  gap: 32px;
 }
 
 .loginTitle {
-  font-size: 24px;
+  font-size: 32px;
   font-weight: 700;
-  color: #1a1a1a;
-  margin-bottom: 24px;
-  font-family: 'Sora', 'Inter', sans-serif;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+}
+
+.loginSubtitle {
+  font-size: 15px;
+  color: var(--text-secondary);
+  text-align: center;
+  max-width: 300px;
+  line-height: 1.6;
 }
 
 .loginButton {
-  border: 1.5px solid #1a1a1a;
-  background-color: transparent;
-  padding: 12px 24px;
+  background: var(--accent);
+  border: none;
+  padding: 14px 32px;
   cursor: pointer;
   font-family: 'Inter', sans-serif;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
-  color: #1a1a1a;
-  border-radius: 0;
+  color: #ffffff;
+  border-radius: var(--radius-md);
+  transition: opacity 0.2s ease;
 }
 
 .loginButton:hover {
-  background-color: #1a1a1a;
-  color: #fff;
+  opacity: 0.85;
 }

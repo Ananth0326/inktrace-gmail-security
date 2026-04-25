@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styles from './App.module.css';
 import TopBar from './components/TopBar';
 import LeftPanel from './components/LeftPanel';
@@ -15,17 +15,28 @@ export default function App() {
   const { activeFilter, setActiveFilter, filters } = useFilters(emails);
   const { searchTerm, setSearchTerm, displayedEmails } = useSearch(emails, activeFilter);
 
+  const [leftOpen, setLeftOpen] = useState(true);
+  const [rightOpen, setRightOpen] = useState(false);
+
   const selectedEmailData = emails.find(m => m.id === selectedMail) || null;
+
+  const handleSelectEmail = (id) => {
+    setSelectedMail(id);
+    setRightOpen(true);
+  };
+
+  const handleCloseRight = () => {
+    setRightOpen(false);
+    setSelectedMail(null);
+  };
 
   if (!sessionToken) {
     return (
       <div className={styles.loginOverlay}>
         <h1 className={styles.loginTitle}>InkTrace</h1>
-        <button 
-          onClick={login}
-          className={styles.loginButton}
-        >
-          Connect Agent
+        <p className={styles.loginSubtitle}>AI-powered email security. Connect your Gmail to start scanning for threats.</p>
+        <button onClick={login} className={styles.loginButton}>
+          Connect Gmail
         </button>
       </div>
     );
@@ -33,41 +44,45 @@ export default function App() {
 
   return (
     <div className={styles.dashboard}>
-      <TopBar 
+      <TopBar
         user={null}
         searchQuery={searchTerm}
         onSearchChange={setSearchTerm}
         onLogout={logout}
+        onToggleLeft={() => setLeftOpen(prev => !prev)}
+        leftOpen={leftOpen}
       />
 
       <div className={styles.workspace}>
-        <LeftPanel 
+        <LeftPanel
           filters={filters}
           activeFilter={activeFilter}
           onFilterChange={setActiveFilter}
           emailStatistics={null}
           lastScanTime={null}
           isCurrentlySyncing={false}
+          isOpen={leftOpen}
+          onToggle={() => setLeftOpen(prev => !prev)}
         />
 
-        <CenterPanel 
+        <CenterPanel
           emails={displayedEmails}
           isLoading={isLoading}
           selectedEmailId={selectedMail}
-          onSelectEmail={setSelectedMail}
+          onSelectEmail={handleSelectEmail}
           onRelabel={handleMarkLabel}
           onBlockDomain={() => {}}
           onBlockSender={() => {}}
           onLoadMore={() => {}}
           hasMore={false}
-          syncStatus={{progress: ''}}
+          syncStatus={{ progress: '' }}
           isSyncing={false}
         />
 
-        <RightPanel 
+        <RightPanel
           selectedEmail={selectedEmailData}
-          isOpen={selectedEmailData !== null}
-          onClose={() => setSelectedMail(null)}
+          isOpen={rightOpen && selectedEmailData !== null}
+          onClose={handleCloseRight}
           onRelabel={handleMarkLabel}
           onBlockDomain={() => {}}
           onBlockSender={() => {}}

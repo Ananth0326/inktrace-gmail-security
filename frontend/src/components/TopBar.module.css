@@ -1,50 +1,83 @@
 .topbar {
-  height: 56px;
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: var(--ink-border);
-  padding: 0 24px;
-  background-color: transparent;
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  gap: 16px;
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 200px;
+}
+
+.toggleBtn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+  font-size: 16px;
+}
+
+.toggleBtn:hover {
+  background: var(--surface);
+  color: var(--text-primary);
 }
 
 .brand {
-  font-family: 'Sora', 'Inter', system-ui, -apple-system, sans-serif;
-  line-height: 1.3;
   font-weight: 700;
-  font-size: 20px;
-  color: #1a1a1a;
-  width: 216px;
+  font-size: 16px;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
 }
 
 .searchWrap {
+  flex: 1;
   display: flex;
   justify-content: center;
-  flex: 1;
 }
 
 .searchInput {
-  width: 280px;
+  width: 320px;
   height: 32px;
-  border: var(--ink-border);
-  background-color: transparent;
-  color: #1a1a1a;
-  padding: 0 8px;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 400;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  padding: 0 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .searchInput:focus {
   outline: none;
+  border-color: rgba(255,255,255,0.2);
+  background: var(--surface-elevated);
 }
 
 .searchInput::placeholder {
-  color: var(--text-grey);
+  color: var(--text-tertiary);
 }
 
 .avatarWrap {
-  width: 216px;
+  min-width: 200px;
   display: flex;
   justify-content: flex-end;
   position: relative;
@@ -53,54 +86,65 @@
 .avatar {
   width: 32px;
   height: 32px;
-  border: var(--ink-border);
-  background-color: transparent;
-  color: #1a1a1a;
+  border-radius: 50%;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.avatar:hover {
+  background: var(--surface-elevated);
 }
 
 .dropdown {
   position: absolute;
-  top: 48px;
+  top: 44px;
   right: 0;
   width: 200px;
-  background-color: #fbfbf9;
-  border: 1.5px solid #1a1a1a;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   padding: 16px;
   z-index: 10;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
 }
 
 .dropdownName {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
+  color: var(--text-primary);
   margin-bottom: 4px;
 }
 
 .dropdownEmail {
   font-size: 11px;
-  color: #6e6e73;
+  color: var(--text-secondary);
   margin-bottom: 16px;
   word-break: break-all;
 }
 
 .logoutButton {
-  border: 1.5px solid #1a1a1a;
-  background-color: transparent;
-  color: #1a1a1a;
-  padding: 6px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 8px 12px;
   cursor: pointer;
-  font-weight: 600;
-  font-family: inherit;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
   font-size: 13px;
   width: 100%;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .logoutButton:hover {
-  background-color: #1a1a1a;
-  color: #fff;
+  background: var(--surface-elevated);
+  color: var(--text-primary);
 }

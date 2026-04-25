@@ -1,85 +1,193 @@
-.panelRight {
-  width: 360px;
+.panel {
+  width: 0;
   flex-shrink: 0;
-  border-left: var(--ink-border);
-  padding: 24px;
-  background-color: var(--bg-color);
-  overflow-y: auto;
+  border-left: 1px solid var(--border);
+  background: var(--bg);
+  overflow: hidden;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.emptyAnalysis {
+.open {
+  width: 360px;
+}
+
+.content {
+  width: 360px;
+  height: 100%;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.empty {
+  width: 360px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-tertiary);
+  font-size: 14px;
+  padding: 24px;
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 32px;
+  opacity: 0.4;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.headerLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+}
+
+.closeBtn {
+  background: var(--surface);
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  color: var(--text-grey);
-  font-size: 14px;
+  font-size: 12px;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.analysisSubject {
-  font-family: 'Sora', 'Inter', system-ui, -apple-system, sans-serif;
-  line-height: 1.3;
+.closeBtn:hover {
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+}
+
+.subjectRow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.subject {
   font-size: 16px;
-  font-weight: 700;
-  color: #000;
-  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+  letter-spacing: -0.2px;
 }
 
-.analysisVerdict {
-  font-size: 14px;
-  color: #1a1a1a;
-  margin-bottom: 24px;
-  text-transform: capitalize;
-}
-
-.analysisHeading {
-  font-family: 'Sora', 'Inter', system-ui, -apple-system, sans-serif;
-  line-height: 1.3;
+.riskBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 20px;
   font-size: 11px;
   font-weight: 700;
-  text-transform: uppercase;
-  color: var(--text-grey);
-  margin-bottom: 8px;
-  margin-top: 24px;
+  letter-spacing: 0.5px;
+  align-self: flex-start;
 }
 
-.riskSignalsList {
-  list-style-type: disc;
-  padding-left: 20px;
-  font-size: 13px;
-  color: var(--text-main);
-  margin-bottom: 24px;
-}
-
-.riskSignalsList li {
-  margin-bottom: 4px;
-}
-
-.aiReasoningText {
-  font-size: 13px;
-  color: var(--text-main);
-  margin-bottom: 4px;
-}
-
-.actionRow {
+.confidenceRow {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 32px;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.actionButtonSquare {
-  border: 1.5px solid #1a1a1a;
-  background-color: transparent;
-  color: #1a1a1a;
-  padding: 6px 12px;
-  cursor: pointer;
+.confidenceLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.confidenceValue {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.confidenceBar {
+  height: 4px;
+  background: var(--surface-elevated);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: -12px;
+}
+
+.confidenceFill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sectionTitle {
+  font-size: 11px;
   font-weight: 600;
-  font-family: inherit;
-  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
 }
 
-.actionButtonSquare:hover {
-  background-color: #1a1a1a;
-  color: #fff;
+.signalList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.signalItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  padding: 10px 12px;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+}
+
+.signalDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+
+.reasoningBox {
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reasoningText {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+}
+
+.actions {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
 }
